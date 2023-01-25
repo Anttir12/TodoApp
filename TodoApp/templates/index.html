@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <title>TodoApp</title>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid justify-content-start">
+            <a class="navbar-brand mr-5" href="/">TodoApp</a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                New
+            </button>
+        </div>
+    </nav>
+    <div class="container-fluid d-flex flex-wrap  align-items-start" id="root">
+
+    </div>
+
+
+
+    <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createModalLabel">Create new task!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="create-task-modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateModallLabel">Update task!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="update-task-modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.3.min.js"
+        integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script>
+
+        let todoTaskData = [];
+        let todoTaskLookup = {};
+        const statusChoices = {
+            "0": "Reserved",
+            "1": "Ongoing",
+            "2": "Done",
+            "3": "Pending",
+        }
+        let nextPage = null;
+
+        $(document).ready(() =>
+        {
+            $("#create-task-modal-body").append(TodoTaskFormTemplate());
+            $.get({
+                url: "/tasks",
+                data: { pagenumber: 1, pagesize: 50 },
+                success: (response) =>
+                {
+                    console.log("Data loaded!");
+                    console.log(response);
+                    todoTaskData.push(...(response.data ?? []));
+                    nextPage = response.nextPage;
+                    response.data.forEach(element =>
+                    {
+                        $("#root").append(TodoTaskCardTemplate(element))
+                        todoTaskLookup[element.id] = element;
+                    });
+                    $(".collapsed").on("show.bs.collapsed", () =>
+                    {
+
+                        console.log("SHOWING!")
+                        console.log(this)
+                    })
+                },
+                fail: (e) =>
+                {
+                    window.alert("Error!");
+                    console.log(e);
+                }
+            });
+
+
+
+        });
+
+        const TodoTaskCardTemplate = (task) =>
+        {
+            isSubtask = Boolean(task.parentId);
+            return `
+            <div class="card ${!isSubtask ? 'm-4' : ''}" style="width: 25rem;" id="card-${task.id}">
+                <div class="card-header collapsed" data-bs-toggle="collapse" href="#body-${task.id}" role="button" 
+                    aria-expanded="false" aria-controls="body-${task.id}"">
+                    <b>${task.summary}</b><br>
+                    <small>${task.id}</small>
+                </div>
+                <div class="collapse" id="body-${task.id}">
+                    <div class="card-body">
+                        ${task.description}
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><b>Create date</b> ${task.createDate}</li>
+                        <li class="list-group-item"><b>Due Date</b> ${task.dueDate}</li>
+                        <li class="list-group-item"><b>Priority</b> ${task.priority}</li>
+                        <li class="list-group-item"><b>Status</b> ${StatusNumberToString(task.status)}</li>
+                        <li class="list-group-item"><b>Has Parent?</b> ${task.parentId !== null}</li>
+                        <li class="list-group-item">
+                            <b>SubTaskCount</b> ${task.subTaskCount}
+                            ${task.subTaskCount > 0 ? `<br><a href="#" onClick="loadSubtasks('${task.id}')">Load subtasks</a>` : ''}
+                        </li>
+                    </ul>
+                    <button class="btn btn-primary m-3 float-start" onClick='updateTask("${task.id}")'><b>Update</b></button>
+                    <button class="btn btn-danger m-3 float-end" onClick='DeleteTask("${task.id}")'><b>DELETE</b></button>
+                </div>
+            </div>
+            `
+        }
+
+        const TodoTaskFormTemplate = (task) =>
+        {
+            let formId = task != null ? 'updateform' : 'createform'
+            let template = `
+            <form method="${!task ? 'POST' : 'PUT'}" action="/tasks${task != null ? '/' + task.id : ''}" id="${formId}">
+                <div class="mb-2">
+                    <label for="summary" class="form-label">Summary</label>
+                    <input name="summary" type="text" class="form-control" placeholder="Summary" value="${task?.summary ?? ''}">
+                </div>
+                <div class="mb-2">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea name="description" type="text" class="form-control" placeholder="description" value="">${task?.description ?? ''}</textarea>
+                </div>
+                <div class="mb-2">
+                    <label for="dueDate" class="form-label">Due date</label>
+                    <input name="dueDate" type="datetime-local" class="form-control" value="${task?.dueDate ? task.dueDate.substring(0, 16) : ''}">
+                </div>
+                <div class="mb-2">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status">
+                        ${Object.keys(statusChoices).map((key, index) =>
+                `<option value="${key}" ${key == task?.status ? 'selected' : ''}>${statusChoices[key]}</option>`)}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label for="priority" class="form-label">Priority</label>
+                    <input name="priority" type="number" class="form-control" value="${task?.priority ?? ''}">
+                </div>
+                <div class="mb-2">
+                    <label for="parentId" class="form-label">Parent Id</label>
+                    <input name="parentId" type="text" class="form-control" value="${task?.parentId ?? ''}">
+                </div>
+                <button type="button" onClick="submitForm('${formId}', '${task?.id}')" class="btn btn-primary">${!task ? 'Submit' : 'Update'}</button>
+            </form>
+            `
+            return template;
+        }
+
+        const submitForm = (formId, taskId) =>
+        {
+            let $taskForm = $("#" + formId);
+            console.log($taskForm)
+            let taskFormData = $taskForm.serializeArray();
+            console.log("formdata:")
+            console.log(taskFormData);
+            let taskFormJsonData = {};
+            $.each(taskFormData, (i, v) =>
+            {
+                if (v.value != "")
+                {
+                    taskFormJsonData[v.name] = v.value
+                }
+            });
+            taskFormJsonData["status"] = parseInt(taskFormJsonData["status"])
+            console.log("formjsondata:")
+            console.log(taskFormJsonData);
+            $.ajax({
+                method: $taskForm.attr("method"),
+                url: $taskForm.attr("action"),
+                data: JSON.stringify(taskFormJsonData),
+                contentType: "application/json",
+                success: (response, textStatus, xhr) =>
+                {
+                    if (xhr.status == 204)
+                    {
+                        oldState = todoTaskLookup[taskId];
+                        updatedState = { ...oldState, ...taskFormJsonData };
+                        window.alert("Task updated!" + taskId);
+                        $("#updateModal").modal("toggle");
+                        if (oldState.parentId == updatedState.parentId)
+                        {
+                            $("#card-" + taskId).replaceWith(TodoTaskCardTemplate(updatedState));
+                        }
+                        else
+                        {
+                            $("#card-" + taskId).remove();
+                        }
+
+                    }
+                    else if (xhr.status == 201)
+                    {
+                        window.alert("Task created")
+                        $("#createModal").modal("toggle");
+                    }
+                },
+                fail: (data) =>
+                {
+                    window.alert("Submit failed");
+                }
+            });
+        }
+
+        const loadSubtasks = (parentId) =>
+        {
+            $.get({
+                url: "/tasks/" + parentId + "/subtasks",
+                data: { pagenumber: 1, pagesize: 50 },
+                success: (response) =>
+                {
+                    console.log("Data loaded!");
+                    console.log(response);
+                    //todoTaskData.push(...(response.data ?? []));
+                    //nextPage = response.nextPage;
+                    response.data.forEach(element =>
+                    {
+                        $("#body-" + parentId).append(TodoTaskCardTemplate(element))
+                        todoTaskLookup[element.id] = element;
+                    });
+                },
+                fail: (e) =>
+                {
+                    window.alert("Error!");
+                    console.log(e);
+                }
+            });
+        }
+
+        const StatusNumberToString = (statusNumber) =>
+        {
+            let statusText = statusChoices[statusNumber];
+            return statusText ?? "Unknown status";
+        }
+
+        const updateTask = (id) =>
+        {
+            task = todoTaskLookup[id];
+            console.log("Found the task: ")
+            console.log(task)
+            $("#update-task-modal-body").html(TodoTaskFormTemplate(task,));
+            $("#updateModal").modal("toggle");
+        }
+
+        const DeleteTask = (id) =>
+        {
+            if (!window.confirm(`Are you sure you want to delete task ${id}?`))
+            {
+                return
+            }
+            $.ajax({
+                url: "/tasks/" + id,
+                type: "DELETE",
+                success: () =>
+                {
+                    $("#card-" + id).remove();
+                    window.alert("Task deleted!");
+                },
+                fail: () =>
+                {
+                    window.alert("Task deletion failed!");
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
