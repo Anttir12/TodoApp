@@ -18,12 +18,22 @@ public class TodoTaskService : ITodoTaskService
 
     public async Task<TodoTaskDto> CreateTodoTaskAsync(CreateTodoTaskDto createDto)
     {
+        TodoTaskDto? parentTask = null;
+        if (createDto.ParentId.HasValue)
+        {
+            parentTask = await GetTodoTaskAsync(createDto.ParentId.Value);
+            if (parentTask == null)
+            {
+                throw new Exception("Invalid parent task"); //TODO Better error messages
+            }
+        }
+
         var task = new TodoTask
         (
             Guid.NewGuid(),
             createDto.Summary,
             createDto.Description,
-            DateTimeOffset.Now,
+            DateTimeOffset.UtcNow,
             createDto.DueDate,
             createDto.Priority,
             createDto.Status,
@@ -62,7 +72,7 @@ public class TodoTaskService : ITodoTaskService
 
     public async Task<bool> UpdateTodoTask(Guid id, UpdateTodoTaskDto updateDto)
     {
-        var existingItem = await GetTodoTaskAsync(id);
+        var existingItem = await _repository.GetTodoTaskAsync(id);
         if (existingItem == null)
         {
             return false;
@@ -92,6 +102,7 @@ public class TodoTaskService : ITodoTaskService
         existingItem.Priority = updateDto.Priority;
         existingItem.Status = updateDto.Status;
         existingItem.ParentId = newParentId;
+        _repository.UpdateTodoTask(existingItem);
         return true;
     }
 }

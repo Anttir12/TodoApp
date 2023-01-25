@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApp;
 using TodoApp.Repositories;
+using TodoApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddDbContext<TodoContext>(opt => opt.UseMySQL(
 ));
 // TODO: Check if this could be something else
 builder.Services.AddScoped<IRepository, MySqlRepository>();
+builder.Services.AddScoped<ITodoTaskService, TodoTaskService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

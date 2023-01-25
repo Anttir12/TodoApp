@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TodoApp.Dtos;
-using TodoApp.Models;
 using TodoApp.Pagination;
-using TodoApp.Repositories;
 using TodoApp.Services;
 
 namespace TodoApp.Controllers;
@@ -21,15 +19,6 @@ public class TasksController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<TodoTaskDto>> CreateTodoTaskAsync(CreateTodoTaskDto createTodoTaskDto)
     {
-        TodoTaskDto? parentTask = null;
-        if (createTodoTaskDto.ParentId.HasValue)
-        {
-            parentTask = await _tasksService.GetTodoTaskAsync(createTodoTaskDto.ParentId.Value);
-            if (parentTask == null)
-            {
-                return BadRequest("Invalid parent task"); //TODO Better error messages
-            }
-        }
         var createdTask = await _tasksService.CreateTodoTaskAsync(createTodoTaskDto);
         return CreatedAtAction(nameof(GetTodoTaskAsync), new { Id = createdTask.Id }, createdTask);
     }
@@ -38,6 +27,7 @@ public class TasksController : ControllerBase
     public async Task<ActionResult<PaginatedResponse<TodoTaskDto>>> GetTodoTasksAsync([FromQuery] PaginationFilter filter)
     {
         var tasks = await _tasksService.GetTodoTasksAsync(filter, t => t.ParentId == null);
+        tasks.CreateHelperURLs(GetCurrentUri());
         return tasks;
     }
 
@@ -52,12 +42,21 @@ public class TasksController : ControllerBase
         return task;
     }
 
+    [HttpGet("{id:guid}/subtasks")]
+    public async Task<ActionResult<PaginatedResponse<TodoTaskDto>>> GetTodoTaskSubTasksAsync(Guid id, [FromQuery] PaginationFilter filter)
+    {
+        var tasks = await _tasksService.GetTodoTasksAsync(filter, (t => t.ParentId == id));
+        tasks.CreateHelperURLs(GetCurrentUri());
+        return tasks;
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteTodoTaskAsync(Guid id)
     {
         bool deleted = await _tasksService.DeleteTodoTask(id);
         // Only reason for false is if the task is not found
-        if(!deleted){
+        if (!deleted)
+        {
             return NotFound();
         }
         return NoContent();
@@ -72,5 +71,16 @@ public class TasksController : ControllerBase
             return NotFound();
         }
         return NoContent();
+    }
+
+    // TODO: Maybe DI or something. Request is only null during UnitTests afaik.
+    private Uri? GetCurrentUri()
+    {
+        if (Request == null)
+        {
+            return null;
+        }
+        var url = $"{Request.Scheme}://{Request.Host.ToUriComponent()}{Request.Path}{Request.QueryString}";
+        return new Uri(url);
     }
 }

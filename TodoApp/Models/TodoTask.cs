@@ -29,7 +29,7 @@ public class TodoTask
     public ICollection<TodoTask> SubTasks { get; set; } = new List<TodoTask>();
 
     [NotMapped]
-    public bool HasSubTasks { get; set; } = false;
+    public int SubTaskCount { get; set; } = 0;
 
     public TodoTask(Guid id, string summary, string? description, DateTimeOffset createDate, DateTimeOffset? dueDate, int priority, TodoTaskStatus status, Guid? parentId)
     {

@@ -1,5 +1,6 @@
 using TodoApp.Dtos;
 using TodoApp.Models;
+using TodoApp.Pagination;
 
 namespace TodoApp;
 
@@ -16,7 +17,7 @@ public static class Extensions
             todoTask.Priority,
             todoTask.Status,
             todoTask.ParentId,
-            todoTask.SubTasks.Select(t => t.asDto()).ToList()
+            todoTask.SubTaskCount
             );
     }
 }

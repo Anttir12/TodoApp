@@ -13,8 +13,7 @@ public class TodoTaskDto
     public int Priority { get; set; }
     public TodoTaskStatus Status { get; set; }
     public Guid? ParentId { get; set; }
-    public ICollection<TodoTaskDto> SubTasks { get; set; } = new List<TodoTaskDto>();
-    public bool HasSubTasks { get; set; }
+    public int SubTaskCount { get; set; }
 
     public TodoTaskDto(Guid id,
                        string summary,
@@ -24,7 +23,7 @@ public class TodoTaskDto
                        int priority,
                        TodoTaskStatus status,
                        Guid? parentId,
-                       ICollection<TodoTaskDto> subTasks)
+                       int subTaskCount)
     {
         Id = id;
         Summary = summary;
@@ -34,6 +33,6 @@ public class TodoTaskDto
         Priority = priority;
         Status = status;
         ParentId = parentId;
-        SubTasks = subTasks;
+        SubTaskCount = subTaskCount;
     }
 }

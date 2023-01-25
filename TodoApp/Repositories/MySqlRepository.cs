@@ -26,29 +26,35 @@ public class MySqlRepository : IRepository
     public async Task<(IReadOnlyCollection<TodoTask> tasks, int count)> GetTodoTasksAsync(
         PaginationFilter paginationFilter, Expression<Func<TodoTask, bool>>? filter = null)
     {
-        IQueryable<TodoTask> query = CreateTodoTaskQuery(filter);
-        var todoTasks = await query.Skip((paginationFilter.PageNumber - 1) * paginationFilter.PageSize)
+        IQueryable<TodoTask> query = CreateTodoTasksQuery(filter);
+        var todoTasks = await query.OrderBy(t => t.CreateDate)
+                                   .Skip((paginationFilter.PageNumber - 1) * paginationFilter.PageSize)
                                    .Take(paginationFilter.PageSize)
                                    .ToListAsync();
         var count = await query.CountAsync();
-        await PopulateHasSubTaskForSubTasks(todoTasks);
-
+        await PopulateSubTaskCounts(todoTasks);
         return (todoTasks, count);
     }
 
-    private IQueryable<TodoTask> CreateTodoTaskQuery(Expression<Func<TodoTask, bool>>? filter = null)
+    private IQueryable<TodoTask> CreateTodoTasksQuery(Expression<Func<TodoTask, bool>>? filter = null)
     {
+        // TODO: For some reason couldn't figure out how to do this to get subtask count in the same query:
+        // SELECT t1.*, count(t2.id) as SubTaskCount FROM TodoTask t1 LEFT JOIN TodoTask t2 ON t1.id = t2.ParentId GROUP BY t1.id;
         IQueryable<TodoTask> query = _context.TodoTask.Include(t => t.SubTasks);
         if (filter != null)
             query = query.Where(filter);
         return query;
     }
 
+
     public async Task<TodoTask?> GetTodoTaskAsync(Guid id)
     {
 
-        var task = await CreateTodoTaskQuery(t => t.Id == id).FirstOrDefaultAsync();
-        await PopulateHasSubTaskForSubTasks(task);
+        var task = await CreateTodoTasksQuery(t => t.Id == id).FirstOrDefaultAsync();
+        if (task != null)
+        {
+            await PopulateSubTaskCount(task);
+        }
         return task;
     }
 
@@ -65,31 +71,24 @@ public class MySqlRepository : IRepository
         _context.SaveChanges();
     }
 
-    private async Task<bool> TaskHasSubTasks(Guid id)
+    private async Task PopulateSubTaskCount(TodoTask todoTask)
     {
-        return await _context.TodoTask.AnyAsync(t => t.ParentId == id);
+        await PopulateSubTaskCounts(new List<TodoTask>() { todoTask });
     }
 
-    private async Task PopulateHasSubTaskForSubTasks(TodoTask? todoTask)
+    private async Task PopulateSubTaskCounts(ICollection<TodoTask> todoTasks)
     {
-        if (todoTask == null) return;
-        await PopulateHasSubTaskForSubTasks(new List<TodoTask>() { todoTask });
-    }
-
-    private async Task PopulateHasSubTaskForSubTasks(ICollection<TodoTask> todoTasks)
-    {
-        Dictionary<Guid, TodoTask> taskDict = todoTasks.SelectMany(t => t.SubTasks)
-                                                       .ToDictionary(t => t.Id, t => t);
+        Dictionary<Guid, TodoTask> taskDict = todoTasks.ToDictionary(t => t.Id, t => t);
         List<Guid> parentIds = taskDict.Keys.ToList();
-        var taskIdsWithSubtasks = await _context.TodoTask
-            .Where(t => t.ParentId.HasValue && parentIds.Contains(t.ParentId.Value))
-            .Select(t => t.ParentId)
-            .Distinct()
+        var counts = await _context.TodoTask
+            .Where(t => t.ParentId != null)
+            .Where(t => parentIds.Contains(t.ParentId!.Value))
+            .GroupBy(t => t.ParentId)
+            .Select(g => new { Id = g.Key, Count = g.Count() })
             .ToListAsync();
-
-        foreach (var taskId in taskIdsWithSubtasks)
+        foreach (var c in counts)
         {
-            taskDict[taskId!.Value].HasSubTasks = true;
+            taskDict[c.Id!.Value].SubTaskCount = c.Count;
         }
     }
 }

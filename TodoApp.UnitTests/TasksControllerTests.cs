@@ -8,7 +8,6 @@ using TodoApp.Controllers;
 using TodoApp.Dtos;
 using TodoApp.Models;
 using TodoApp.Pagination;
-using TodoApp.Repositories;
 using TodoApp.Services;
 using Xunit;
 
@@ -20,7 +19,7 @@ public class TaskControllerTest
     [Fact]
     public async Task GetAsync_WithNonexistingTask_ReturnsNotFound()
     {
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync((TodoTaskDto)null!);
         var controller = new TasksController(mockedService.Object);
 
@@ -32,31 +31,31 @@ public class TaskControllerTest
     public async Task GetTodoTaskAsync_WithExistingTask_ReturnsTask()
     {
         var expectedTask = CreateRandomTask();
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync(expectedTask.asDto());
         var controller = new TasksController(mockedService.Object);
 
         var result = await controller.GetTodoTaskAsync(expectedTask.Id);
 
         result.Value.Should().BeEquivalentTo(
-            expectedTask,
-            options => options.ComparingByMembers<TodoTask>());
+            expectedTask.asDto(),
+            options => options.ComparingByMembers<TodoTaskDto>());
     }
 
     [Fact]
-    public async Task GetTodoTaskAsync_TaskWithSubtasks_ReturnsTaskWithSubtask()
+    public async Task GetTodoTaskAsync_TaskWithSubtasks_ReturnsTaskWithSubtaskCount1()
     {
         var expectedTask = CreateRandomTask();
         var subTask1 = CreateRandomTask(expectedTask);
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync(expectedTask.asDto());
         var controller = new TasksController(mockedService.Object);
 
         var result = await controller.GetTodoTaskAsync(expectedTask.Id);
 
         result.Value.Should().BeEquivalentTo(
-            expectedTask,
-            options => options.ComparingByMembers<TodoTask>());
+            expectedTask.asDto(),
+            options => options.ComparingByMembers<TodoTaskDto>());
     }
 
     [Fact]
@@ -67,36 +66,50 @@ public class TaskControllerTest
         var expectedTasks = new[] { parentTask1.asDto(), CreateRandomTask().asDto(), CreateRandomTask().asDto() };
         var expectedResponse = new PaginatedResponse<TodoTaskDto>(expectedTasks, 1, 10, 3);
 
-        mockedService.Setup(repo => repo.GetTodoTasksAsync(It.IsAny<PaginationFilter>(), It.IsAny<Expression<Func<TodoTask, bool>>>()))
+        mockedService.Setup(s => s.GetTodoTasksAsync(It.IsAny<PaginationFilter>(), It.IsAny<Expression<Func<TodoTask, bool>>>()))
         .ReturnsAsync(expectedResponse);
         var controller = new TasksController(mockedService.Object);
 
         var result = await controller.GetTodoTasksAsync(new PaginationFilter());
 
-        result.Value.Should().BeEquivalentTo(
-            expectedTasks,
-            options => options.ComparingByMembers<TodoTask>());
+        result.Value!.Should().BeEquivalentTo(
+            expectedResponse,
+            options => options.ComparingByMembers<PaginatedResponse<TodoTaskDto>>());
     }
 
     [Fact]
     public async Task CreateTodoTaskAsync_WithValidTask_ReturnsCreatedTasks()
     {
-        var taskToCreate = new CreateTodoTaskDto(
+        var createDto = new CreateTodoTaskDto(
             summary: Guid.NewGuid().ToString(),
             description: Guid.NewGuid().ToString(),
-            dueDate: DateTimeOffset.Now,
+            dueDate: DateTimeOffset.UtcNow,
             priority: rand.Next(3),
             status: TodoTaskStatus.Ongoing,
             parentId: null
         );
 
+        var expectedTask = new TodoTask
+        (
+            Guid.NewGuid(),
+            createDto.Summary,
+            createDto.Description,
+            DateTimeOffset.UtcNow,
+            createDto.DueDate,
+            createDto.Priority,
+            createDto.Status,
+            createDto.ParentId
+        );
+
+        mockedService.Setup(s => s.CreateTodoTaskAsync(It.IsAny<CreateTodoTaskDto>()))
+        .ReturnsAsync(expectedTask.asDto());
         var controller = new TasksController(mockedService.Object);
 
-        var result = await controller.CreateTodoTaskAsync(taskToCreate);
+        var result = await controller.CreateTodoTaskAsync(createDto);
 
-        var createdTask = (result.Result! as CreatedAtActionResult).Value as TodoTaskDto;
+        var createdTask = (result.Result! as CreatedAtActionResult)!.Value as TodoTaskDto;
 
-        taskToCreate.Should().BeEquivalentTo(
+        createDto.Should().BeEquivalentTo(
             createdTask,
             options => options.ComparingByMembers<TodoTaskDto>().ExcludingMissingMembers()
         );
@@ -108,22 +121,27 @@ public class TaskControllerTest
     public async Task UpdateTodoTaskAsync_WithExistingTask_ReturnsNoContent()
     {
         TodoTask existingTask = CreateRandomTask();
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync(existingTask.asDto());
+        mockedService.Setup(s => s.UpdateTodoTask(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
+        .ReturnsAsync(true);
 
         var controller = new TasksController(mockedService.Object);
-        var taskToUpdate = new UpdateTodoTaskDto(
-            summary: "updated summary",
-            description: null,
-            dueDate: DateTimeOffset.UtcNow,
-            priority: existingTask.Priority + 1,
-            status: TodoTaskStatus.Done,
-            parentId: null
-        );
 
-        var result = await controller.UpdateTodoTaskAsync(existingTask.Id, taskToUpdate);
+        var result = await controller.UpdateTodoTaskAsync(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>());
         result.Should().BeOfType<NoContentResult>();
     }
+
+    [Fact]
+    public async Task UpdateTodoTaskAsync_WithNonexistingTask_ReturnsNotFound()
+    {
+        mockedService.Setup(s => s.UpdateTodoTask(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
+        .ReturnsAsync(false);
+
+        var controller = new TasksController(mockedService.Object);
+
+        var result = await controller.UpdateTodoTaskAsync(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>());
+        result.Should().BeOfType<NotFoundResult>();
+    }
+    /* TODO: Move to service unit tests
 
     [Fact]
     public async Task UpdateTodoTaskAsync_MoveChildToTopLevel_ReturnsNoContent()
@@ -131,7 +149,7 @@ public class TaskControllerTest
 
         TodoTask parentTask = CreateRandomTask();
         TodoTask childTask = CreateRandomTask(parentTask);
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync(childTask.asDto());
 
         var controller = new TasksController(mockedService.Object);
@@ -146,26 +164,6 @@ public class TaskControllerTest
 
         var result = await controller.UpdateTodoTaskAsync(childTask.Id, taskToUpdate);
         result.Should().BeOfType<NoContentResult>();
-    }
-
-    [Fact]
-    public async Task UpdateTodoTaskAsync_WithNonexistingTask_ReturnsNotFound()
-    {
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync((TodoTaskDto)null!);
-
-        var controller = new TasksController(mockedService.Object);
-        var taskToUpdate = new UpdateTodoTaskDto(
-            summary: "updated summary",
-            description: null,
-            dueDate: DateTimeOffset.UtcNow,
-            priority: 2,
-            status: TodoTaskStatus.Done,
-            parentId: null
-        );
-
-        var result = await controller.UpdateTodoTaskAsync(Guid.NewGuid(), taskToUpdate);
-        result.Should().BeOfType<NotFoundResult>();
     }
 
     [Fact]
@@ -214,13 +212,14 @@ public class TaskControllerTest
         var result = await controller.UpdateTodoTaskAsync(parentTask.Id, taskToUpdate);
         result.Should().BeOfType<BadRequestObjectResult>();
     }
-
+    */
     [Fact]
     public async Task DeleteTodoTaskAsync_ExistingTask_ReturnsNoContent()
     {
         TodoTask existingTask = CreateRandomTask();
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync(existingTask.asDto());
+
+        mockedService.Setup(s => s.DeleteTodoTask(It.IsAny<Guid>()))
+        .ReturnsAsync(true);
 
         var controller = new TasksController(mockedService.Object);
 
@@ -231,7 +230,7 @@ public class TaskControllerTest
     [Fact]
     public async Task DeleteTodoTaskAsync_NonExistingTask_ReturnsNotFound()
     {
-        mockedService.Setup(repo => repo.GetTodoTaskAsync(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync((TodoTaskDto)null!);
 
         var controller = new TasksController(mockedService.Object);
@@ -247,16 +246,15 @@ public class TaskControllerTest
             id: Guid.NewGuid(),
             summary: Guid.NewGuid().ToString(),
             description: Guid.NewGuid().ToString(),
-            createDate: DateTimeOffset.Now,
-            dueDate: DateTimeOffset.Now,
+            createDate: DateTimeOffset.UtcNow,
+            dueDate: DateTimeOffset.UtcNow,
             priority: rand.Next(5),
             status: (TodoTaskStatus)rand.Next(statuses.Length),
             parentId: parent?.Id
         );
         if (parent != null)
         {
-            parent.SubTasks.Add(newTask);
-            parent.HasSubTasks = true;
+            parent.SubTaskCount += 1;
         }
 
         return newTask;
