@@ -10,19 +10,33 @@
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid justify-content-start">
-            <a class="navbar-brand mr-5" href="/">TodoApp</a>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
-                New
+    <nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-between">
+        <a class="navbar-brand mr-5" href="/">TodoApp</a>
+        <form class="form-inline" id="searchForm">
+            <span class="navbar-text mr-2">Sorting</span>
+            <select id="sortField" class="mr-2">
+                <option value="createDate">Create Date</option>
+                <option value="summary">Summary</option>
+                <option value="description">Description</option>
+                <option value="dueDate">Due Date</option>
+                <option value="priority">Priority</option>
+                <option value="status">Status</option>
+            </select>
+            <select id="sortOrder">
+                <option value="">Ascending</option>
+                <option value="_desc">Descening</option>
+            </select>
+            <button type="button" class="btn btn-primary ml-4" id="searchButton">
+                Search
             </button>
-        </div>
+        </form>
+        <button type="button" class="btn btn-primary ml-4" data-bs-toggle="modal" data-bs-target="#createModal">
+            New
+        </button>
     </nav>
-    <div class="container-fluid d-flex flex-wrap  align-items-start" id="root">
-
+    <div class="container-fluid">
+        <div class="d-flex flex-wrap  align-items-start" id="root"></div>
     </div>
-
-
 
     <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -74,9 +88,30 @@
         $(document).ready(() =>
         {
             $("#create-task-modal-body").append(TodoTaskFormTemplate());
+            $("#searchButton").click(search)
+            fetchTasks();
+        });
+
+        const reset = () =>
+        {
+            todoTaskData = []
+            todoTaskLookup = {}
+            nextPage = null;
+            $("#root").empty();
+        }
+
+        const search = () =>
+        {
+            reset();
+            fetchTasks();
+        }
+
+        const fetchTasks = () =>
+        {
+            let sortOrder = $("#sortField").val() + ($("#sortOrder").val() ?? "");
             $.get({
                 url: "/tasks",
-                data: { pagenumber: 1, pagesize: 50 },
+                data: { pagenumber: 1, pagesize: 50, sortOrder: sortOrder },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
@@ -88,12 +123,6 @@
                         $("#root").append(TodoTaskCardTemplate(element))
                         todoTaskLookup[element.id] = element;
                     });
-                    $(".collapsed").on("show.bs.collapsed", () =>
-                    {
-
-                        console.log("SHOWING!")
-                        console.log(this)
-                    })
                 },
                 fail: (e) =>
                 {
@@ -101,10 +130,111 @@
                     console.log(e);
                 }
             });
+        }
 
+        const submitForm = (formId, taskId) =>
+        {
+            let $taskForm = $("#" + formId);
+            let taskFormJsonData = {};
+            $.each($taskForm.serializeArray(), (i, v) =>
+            {
+                if (v.value != "")
+                {
+                    taskFormJsonData[v.name] = v.value
+                }
+            });
+            taskFormJsonData["status"] = parseInt(taskFormJsonData["status"])
+            $.ajax({
+                method: $taskForm.attr("method"),
+                url: $taskForm.attr("action"),
+                data: JSON.stringify(taskFormJsonData),
+                contentType: "application/json",
+                success: (response, textStatus, xhr) =>
+                {
+                    if (xhr.status == 204)
+                    {
+                        oldState = todoTaskLookup[taskId];
+                        updatedState = { ...oldState, ...taskFormJsonData };
+                        window.alert("Task updated!" + taskId);
+                        $("#updateModal").modal("toggle");
+                        if (oldState.parentId == updatedState.parentId)
+                        {
+                            $("#card-" + taskId).replaceWith(TodoTaskCardTemplate(updatedState));
+                        }
+                        else
+                        {
+                            $("#card-" + taskId).remove();
+                        }
 
+                    }
+                    else if (xhr.status == 201)
+                    {
+                        window.alert("Task created");
+                        search();
+                        $("#createModal").modal("toggle");
+                    }
+                },
+                fail: (data) =>
+                {
+                    window.alert("Submit failed");
+                }
+            });
+        }
 
-        });
+        const loadSubtasks = (parentId) =>
+        {
+            $.get({
+                url: "/tasks/" + parentId + "/subtasks",
+                data: { pagenumber: 1, pagesize: 50 },
+                success: (response) =>
+                {
+                    console.log("Data loaded!");
+                    console.log(response);
+                    //todoTaskData.push(...(response.data ?? []));
+                    //nextPage = response.nextPage;
+                    response.data.forEach(element =>
+                    {
+                        $("#body-" + parentId).append(TodoTaskCardTemplate(element))
+                        todoTaskLookup[element.id] = element;
+                    });
+                },
+                fail: (e) =>
+                {
+                    window.alert("Error!");
+                    console.log(e);
+                }
+            });
+        }
+
+        const updateTask = (id) =>
+        {
+            task = todoTaskLookup[id];
+            console.log("Found the task: ")
+            console.log(task)
+            $("#update-task-modal-body").html(TodoTaskFormTemplate(task));
+            $("#updateModal").modal("toggle");
+        }
+
+        const DeleteTask = (id) =>
+        {
+            if (!window.confirm(`Are you sure you want to delete task ${id}?`))
+            {
+                return
+            }
+            $.ajax({
+                url: "/tasks/" + id,
+                type: "DELETE",
+                success: () =>
+                {
+                    $("#card-" + id).remove();
+                    window.alert("Task deleted!");
+                },
+                fail: () =>
+                {
+                    window.alert("Task deletion failed!");
+                }
+            });
+        }
 
         const TodoTaskCardTemplate = (task) =>
         {
@@ -124,7 +254,7 @@
                         <li class="list-group-item"><b>Create date</b> ${task.createDate}</li>
                         <li class="list-group-item"><b>Due Date</b> ${task.dueDate}</li>
                         <li class="list-group-item"><b>Priority</b> ${task.priority}</li>
-                        <li class="list-group-item"><b>Status</b> ${StatusNumberToString(task.status)}</li>
+                        <li class="list-group-item"><b>Status</b> ${statusChoices[task?.status] ?? "Unknown status"}</li>
                         <li class="list-group-item"><b>Has Parent?</b> ${task.parentId !== null}</li>
                         <li class="list-group-item">
                             <b>SubTaskCount</b> ${task.subTaskCount}
@@ -174,121 +304,6 @@
             </form>
             `
             return template;
-        }
-
-        const submitForm = (formId, taskId) =>
-        {
-            let $taskForm = $("#" + formId);
-            console.log($taskForm)
-            let taskFormData = $taskForm.serializeArray();
-            console.log("formdata:")
-            console.log(taskFormData);
-            let taskFormJsonData = {};
-            $.each(taskFormData, (i, v) =>
-            {
-                if (v.value != "")
-                {
-                    taskFormJsonData[v.name] = v.value
-                }
-            });
-            taskFormJsonData["status"] = parseInt(taskFormJsonData["status"])
-            console.log("formjsondata:")
-            console.log(taskFormJsonData);
-            $.ajax({
-                method: $taskForm.attr("method"),
-                url: $taskForm.attr("action"),
-                data: JSON.stringify(taskFormJsonData),
-                contentType: "application/json",
-                success: (response, textStatus, xhr) =>
-                {
-                    if (xhr.status == 204)
-                    {
-                        oldState = todoTaskLookup[taskId];
-                        updatedState = { ...oldState, ...taskFormJsonData };
-                        window.alert("Task updated!" + taskId);
-                        $("#updateModal").modal("toggle");
-                        if (oldState.parentId == updatedState.parentId)
-                        {
-                            $("#card-" + taskId).replaceWith(TodoTaskCardTemplate(updatedState));
-                        }
-                        else
-                        {
-                            $("#card-" + taskId).remove();
-                        }
-
-                    }
-                    else if (xhr.status == 201)
-                    {
-                        window.alert("Task created")
-                        $("#createModal").modal("toggle");
-                    }
-                },
-                fail: (data) =>
-                {
-                    window.alert("Submit failed");
-                }
-            });
-        }
-
-        const loadSubtasks = (parentId) =>
-        {
-            $.get({
-                url: "/tasks/" + parentId + "/subtasks",
-                data: { pagenumber: 1, pagesize: 50 },
-                success: (response) =>
-                {
-                    console.log("Data loaded!");
-                    console.log(response);
-                    //todoTaskData.push(...(response.data ?? []));
-                    //nextPage = response.nextPage;
-                    response.data.forEach(element =>
-                    {
-                        $("#body-" + parentId).append(TodoTaskCardTemplate(element))
-                        todoTaskLookup[element.id] = element;
-                    });
-                },
-                fail: (e) =>
-                {
-                    window.alert("Error!");
-                    console.log(e);
-                }
-            });
-        }
-
-        const StatusNumberToString = (statusNumber) =>
-        {
-            let statusText = statusChoices[statusNumber];
-            return statusText ?? "Unknown status";
-        }
-
-        const updateTask = (id) =>
-        {
-            task = todoTaskLookup[id];
-            console.log("Found the task: ")
-            console.log(task)
-            $("#update-task-modal-body").html(TodoTaskFormTemplate(task,));
-            $("#updateModal").modal("toggle");
-        }
-
-        const DeleteTask = (id) =>
-        {
-            if (!window.confirm(`Are you sure you want to delete task ${id}?`))
-            {
-                return
-            }
-            $.ajax({
-                url: "/tasks/" + id,
-                type: "DELETE",
-                success: () =>
-                {
-                    $("#card-" + id).remove();
-                    window.alert("Task deleted!");
-                },
-                fail: () =>
-                {
-                    window.alert("Task deletion failed!");
-                }
-            });
         }
     </script>
 </body>
