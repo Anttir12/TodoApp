@@ -45,8 +45,8 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
     public async Task CreateOneWithSubSubTaskAndGetTasks()
     {
         var task1 = await CreateRandomTodoTask("Summary1");
-        var task2 = await CreateRandomTodoTask("Summary1.1", task1);
-        var task3 = await CreateRandomTodoTask("Summary1.1.1", task2);
+        var task2 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task3 = await CreateRandomTodoTask("Summary1.1.1", parent: task2);
 
         task1.SubTaskCount = 1;
         task2.SubTaskCount = 1;
@@ -60,8 +60,8 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
     public async Task CreateOneWithSubSubTaskAndGetTheFirstSubTask()
     {
         var task1 = await CreateRandomTodoTask("Summary1");
-        var task2 = await CreateRandomTodoTask("Summary1.1", task1);
-        var task3 = await CreateRandomTodoTask("Summary1.1.1", task2);
+        var task2 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task3 = await CreateRandomTodoTask("Summary1.1.1", parent: task2);
 
         task1.SubTaskCount = 1;
         task2.SubTaskCount = 1;
@@ -88,8 +88,8 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
     public async Task CreateTaskWithSubSubTaskAndMoveSubTask()
     {
         var task1 = await CreateRandomTodoTask("Summary1");
-        var task2 = await CreateRandomTodoTask("Summary1.1", task1);
-        var task3 = await CreateRandomTodoTask("Summary1.1.1", task2);
+        var task2 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task3 = await CreateRandomTodoTask("Summary1.1.1", parent: task2);
 
         var updateTask2Dto = new UpdateTodoTaskDto(
             "Summary2",
@@ -99,7 +99,6 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
             task2.Status,
             null // Make task2 a top level task
         );
-
         var updateResponse = await _client.PutAsJsonAsync<UpdateTodoTaskDto>($"/tasks/{task2.Id}", updateTask2Dto);
         updateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
 
@@ -107,7 +106,7 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
         task2.ParentId = null;
         task2.Summary = "Summary2";
         task2.SubTaskCount = 1;
-        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto>() { task1, task2 }, 1, 10, 2);
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto>() { task2, task1 }, 1, 10, 2);
         var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>("/tasks");
         tasksResponse!.Should().BeEquivalentTo(expectedResponse);
     }
@@ -121,23 +120,59 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
         var task4 = await CreateRandomTodoTask("Summary4");
         var task5 = await CreateRandomTodoTask("Summary5");
 
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>("/tasks?pagenumber=2&pagesize=2");
+
         var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto>() { task3, task4 }, 2, 2, 5);
         expectedResponse.NextPage = new Uri("http://localhost/tasks?pagenumber=3&pagesize=2");
         expectedResponse.PreviousPage = new Uri("http://localhost/tasks?pagenumber=1&pagesize=2");
-        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>("/tasks?pagenumber=2&pagesize=2");
         tasksResponse!.Should().BeEquivalentTo(expectedResponse);
     }
 
-    private async Task<TodoTaskDto> CreateRandomTodoTask(string? summary = null, TodoTaskDto? parent = null)
+    [Theory]
+    [InlineData(new int[] { 0, 1, 2, 4, 3 }, "summary")]
+    [InlineData(new int[] { 3, 4, 2, 1, 0 }, "summary_desc")]
+    [InlineData(new int[] { 4, 0, 1, 2, 3 }, "description")]
+    [InlineData(new int[] { 3, 2, 1, 0, 4 }, "description_desc")]
+    [InlineData(new int[] { 3, 4, 0, 1, 2 }, "dueDate")]
+    [InlineData(new int[] { 2, 1, 0, 4, 3 }, "dueDate_desc")]
+    [InlineData(new int[] { 2, 3, 4, 0, 1 }, "priority")]
+    [InlineData(new int[] { 1, 0, 4, 3, 2 }, "priority_desc")]
+    [InlineData(new int[] { 0, 2, 1, 3, 4 }, "status")]
+    [InlineData(new int[] { 4, 3, 1, 0, 2 }, "status_desc")]
+    [InlineData(new int[] { 0, 1, 2, 3, 4 }, "createDate")]
+    [InlineData(new int[] { 4, 3, 2, 1, 0 }, "createDate_desc")]
+    [InlineData(new int[] { 0, 1, 2, 3, 4 }, "summarry_desssc")]  // Invalid sortOrder. Defaults to createDate
+    public async Task TestTasksSorting(int[] expectedOrder, string sortOrder)
+    {
+        var tasks = new List<TodoTaskDto>();
+        tasks.Add(await CreateRandomTodoTask("Summary0", "Description1", DateTimeOffset.UtcNow.AddMinutes(2), 3, TodoTaskStatus.Pending));
+        tasks.Add(await CreateRandomTodoTask("Summary1", "Description2", DateTimeOffset.UtcNow.AddMinutes(3), 4, TodoTaskStatus.Reserved));
+        tasks.Add(await CreateRandomTodoTask("Summary2", "Description3", DateTimeOffset.UtcNow.AddMinutes(4), 0, TodoTaskStatus.Pending));
+        tasks.Add(await CreateRandomTodoTask("Summary4", "Description4", DateTimeOffset.UtcNow.AddMinutes(0), 1, TodoTaskStatus.Ongoing));
+        tasks.Add(await CreateRandomTodoTask("Summary3", "Description0", DateTimeOffset.UtcNow.AddMinutes(1), 2, TodoTaskStatus.Done));
+
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>($"/tasks?pagenumber=1&pagesize=10&sortOrder={sortOrder}");
+
+        var expectedReturnOrder = expectedOrder.Select(i => tasks[i]).ToList();
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(expectedReturnOrder, 1, 10, 5);
+        tasksResponse!.Should().BeEquivalentTo(expectedResponse);
+    }
+
+    private async Task<TodoTaskDto> CreateRandomTodoTask(string? summary = null,
+                                                         string? description = null,
+                                                         DateTimeOffset? dueDate = null,
+                                                         int? priority = null,
+                                                         TodoTaskStatus? status = null,
+                                                         TodoTaskDto? parent = null)
     {
         {
             var statuses = Enum.GetValues<TodoTaskStatus>();
             var newTask = new CreateTodoTaskDto(
                 summary: summary ?? Guid.NewGuid().ToString(),
-                description: Guid.NewGuid().ToString(),
-                dueDate: DateTimeOffset.UtcNow,
-                priority: rand.Next(5),
-                status: (TodoTaskStatus)rand.Next(statuses.Length),
+                description: description ?? Guid.NewGuid().ToString(),
+                dueDate: dueDate ?? DateTimeOffset.UtcNow,
+                priority: priority ?? rand.Next(5),
+                status: status ?? (TodoTaskStatus)rand.Next(statuses.Length),
                 parentId: parent?.Id
             );
             if (parent != null)

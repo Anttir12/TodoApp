@@ -27,13 +27,57 @@ public class MySqlRepository : IRepository
         PaginationFilter paginationFilter, Expression<Func<TodoTask, bool>>? filter = null)
     {
         IQueryable<TodoTask> query = CreateTodoTasksQuery(filter);
-        var todoTasks = await query.OrderBy(t => t.CreateDate)
-                                   .Skip((paginationFilter.PageNumber - 1) * paginationFilter.PageSize)
-                                   .Take(paginationFilter.PageSize)
-                                   .ToListAsync();
+        var todoTasks = await ApplyOrderBy(query, paginationFilter)
+                              .Skip((paginationFilter.PageNumber - 1) * paginationFilter.PageSize)
+                              .Take(paginationFilter.PageSize)
+                              .ToListAsync();
         var count = await query.CountAsync();
         await PopulateSubTaskCounts(todoTasks);
         return (todoTasks, count);
+    }
+
+    private IQueryable<TodoTask> ApplyOrderBy(IQueryable<TodoTask> query, PaginationFilter paginationFilter)
+    {
+        switch (paginationFilter.SortOrder)
+        {
+            case "priority":
+                query = query.OrderBy(t => t.Priority).ThenBy(t => t.CreateDate);
+                break;
+            case "priority_desc":
+                query = query.OrderByDescending(t => t.Priority).ThenBy(t => t.CreateDate);
+                break;
+            case "status":
+                query = query.OrderBy(t => t.Status).ThenBy(t => t.CreateDate);
+                break;
+            case "status_desc":
+                query = query.OrderByDescending(t => t.Status).ThenBy(t => t.CreateDate);
+                break;
+            case "summary":
+                query = query.OrderBy(t => t.Summary).ThenBy(t => t.CreateDate);
+                break;
+            case "summary_desc":
+                query = query.OrderByDescending(t => t.Summary).ThenBy(t => t.CreateDate);
+                break;
+            case "description":
+                query = query.OrderBy(t => t.Description).ThenBy(t => t.CreateDate);
+                break;
+            case "description_desc":
+                query = query.OrderByDescending(t => t.Description).ThenBy(t => t.CreateDate);
+                break;
+            case "dueDate":
+                query = query.OrderBy(t => t.DueDate).ThenBy(t => t.CreateDate);
+                break;
+            case "dueDate_desc":
+                query = query.OrderByDescending(t => t.DueDate).ThenBy(t => t.CreateDate);
+                break;
+            case "createDate_desc":
+                query = query.OrderByDescending(t => t.CreateDate);
+                break;
+            default:
+                query = query.OrderBy(t => t.CreateDate);
+                break;
+        }
+        return query;
     }
 
     private IQueryable<TodoTask> CreateTodoTasksQuery(Expression<Func<TodoTask, bool>>? filter = null)

@@ -89,6 +89,7 @@ public class TestingWebApiFactory<TEntryPoint> : WebApplicationFactory<Program>,
             // Something (Database?) truncates the datetimes.
             options.Using<DateTimeOffset>(ctx => ctx.Subject.Should().BeCloseTo(
                 ctx.Expectation, precision: TimeSpan.FromSeconds(1))).WhenTypeIs<DateTimeOffset>();
+            options.WithStrictOrdering();
             return options;
         });
     }
