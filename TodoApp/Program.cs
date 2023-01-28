@@ -1,7 +1,12 @@
+using dotenv.net;
+using dotenv.net.Utilities;
 using Microsoft.EntityFrameworkCore;
 using TodoApp;
 using TodoApp.Repositories;
 using TodoApp.Services;
+
+DotEnv.Load();
+var dotenv = DotEnv.Read();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +44,22 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.UseMiddleware<CustomExceptionHandlingMiddleware>();
+
+bool applyMigrations = false;
+EnvReader.TryGetBooleanValue("migrate", out applyMigrations);
+if (applyMigrations)
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<TodoContext>();
+        Console.Write("ConnectionString: " + builder.Configuration.GetConnectionString("MySqlDatabase"));
+        if (context.Database.GetPendingMigrations().Any())
+        {
+            context.Database.Migrate();
+        }
+    }
+}
 
 app.Run();
 

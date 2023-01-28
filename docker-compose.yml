@@ -1,0 +1,18 @@
+version: "3.3"
+
+services:
+  app:
+    image: todoapp
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - 5000:80
+
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    env_file:
+      - .env
