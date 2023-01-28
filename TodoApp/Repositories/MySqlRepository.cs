@@ -156,7 +156,7 @@ public class MySqlRepository : IRepository
         await _context.Database.ExecuteSqlRawAsync(@$"
         UPDATE TodoTask t 
             JOIN 
-                (SELECT Id, Position, row_number() OVER (Partition by ParentId) as rn
+                (SELECT Id, Position, row_number() OVER (ORDER BY Position) as rn
                  FROM TodoTask
                  WHERE ParentId {(parentId == null ? "IS NULL" : $"= @parentId")}
                  ORDER BY Position) as sub 
@@ -179,7 +179,7 @@ public class MySqlRepository : IRepository
         }
 
         // There is no room before the newIndex. Rebalancing required
-        if (positionAtNewIndex == 0)
+        if (positionAtNewIndex <= 1)
         {
             await RebalancePositionAsync(task.ParentId);
             // TODO We might not need call this again because we should know the position of index 0 after rebalancing.

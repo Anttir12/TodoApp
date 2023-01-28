@@ -106,7 +106,8 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
         task2.ParentId = null;
         task2.Summary = "Summary2";
         task2.SubTaskCount = 1;
-        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto>() { task2, task1 }, 1, 10, 2);
+        task2.Position = (ulong)uint.MaxValue * 2;
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto>() { task1, task2 }, 1, 10, 2);
         var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>("/tasks");
         tasksResponse!.Should().BeEquivalentTo(expectedResponse);
     }
@@ -141,7 +142,9 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
     [InlineData(new int[] { 4, 3, 1, 0, 2 }, "status_desc")]
     [InlineData(new int[] { 0, 1, 2, 3, 4 }, "createDate")]
     [InlineData(new int[] { 4, 3, 2, 1, 0 }, "createDate_desc")]
-    [InlineData(new int[] { 0, 1, 2, 3, 4 }, "summarry_desssc")]  // Invalid sortOrder. Defaults to createDate
+    [InlineData(new int[] { 0, 1, 2, 3, 4 }, "position")]
+    [InlineData(new int[] { 4, 3, 2, 1, 0 }, "position_desc")]
+    [InlineData(new int[] { 0, 1, 2, 3, 4 }, "summarry_desssc")]  // Invalid sortOrder. Defaults to position
     public async Task TestTasksSorting(int[] expectedOrder, string sortOrder)
     {
         var tasks = new List<TodoTaskDto>();
@@ -155,6 +158,104 @@ public class TodoTaskApiTests : IClassFixture<TestingWebApiFactory<Program>>, IA
 
         var expectedReturnOrder = expectedOrder.Select(i => tasks[i]).ToList();
         var expectedResponse = new PaginatedResponse<TodoTaskDto>(expectedReturnOrder, 1, 10, 5);
+        tasksResponse!.Should().BeEquivalentTo(expectedResponse);
+    }
+
+    [Fact]
+    public async Task TestChangingTaskOrder()
+    {
+        var tasks = new List<TodoTaskDto>();
+        var task1 = await CreateRandomTodoTask("Summary1");
+        var task2 = await CreateRandomTodoTask("Summary2");
+        var task3 = await CreateRandomTodoTask("Summary3");
+
+        var moveDto = new MoveTodoTaskDto(0);
+        var updateResponse = await _client.PutAsJsonAsync<MoveTodoTaskDto>($"/tasks/{task2.Id}/move", moveDto);
+        updateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+
+        task2.Position = task1.Position / 2;
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>($"/tasks?pagenumber=1&pagesize=10");
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto> { task2, task1, task3 }, 1, 10, 3);
+        tasksResponse!.Should().BeEquivalentTo(expectedResponse);
+    }
+
+    [Fact]
+    public async Task TestChangingSubTaskOrder()
+    {
+        var task1 = await CreateRandomTodoTask("Summary1");
+        var task1_1 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task1_2 = await CreateRandomTodoTask("Summary1.2", parent: task1);
+        var task2 = await CreateRandomTodoTask("Summary2");
+        var task2_1 = await CreateRandomTodoTask("Summary2.1", parent: task2);
+        var task2_2 = await CreateRandomTodoTask("Summary2.2", parent: task2);
+        var task2_3 = await CreateRandomTodoTask("Summary2.3", parent: task2);
+        var task3 = await CreateRandomTodoTask("Summary3");
+        var task3_1 = await CreateRandomTodoTask("Summary3.1", parent: task3);
+
+        var moveDto = new MoveTodoTaskDto(0);
+        var updateResponse = await _client.PutAsJsonAsync<MoveTodoTaskDto>($"/tasks/{task2_2.Id}/move", moveDto);
+        updateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+
+        task2_2.Position = task2_1.Position / 2;
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>($"/tasks/{task2.Id}/subtasks?pagenumber=1&pagesize=10");
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto> { task2_2, task2_1, task2_3 }, 1, 10, 3);
+        tasksResponse!.Should().BeEquivalentTo(expectedResponse);
+    }
+
+    [Fact]
+    public async Task TestRebalancingDuringTaskReordering()
+    {
+        var task1 = await CreateRandomTodoTask("Summary1");
+        var task1_1 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task1_2 = await CreateRandomTodoTask("Summary1.2", parent: task1);
+        var task2 = await CreateRandomTodoTask("Summary2");
+        var task2_1 = await CreateRandomTodoTask("Summary2.1", parent: task2);
+        var task2_2 = await CreateRandomTodoTask("Summary2.2", parent: task2);
+        var task3 = await CreateRandomTodoTask("Summary3");
+        var task3_1 = await CreateRandomTodoTask("Summary3.1", parent: task3);
+
+        var moveDto = new MoveTodoTaskDto(0);
+        // 30 moves exhausts the available space between 0 and first tasks position. move #31 triggers rebalancing
+        for (int i = 0; i < 32; i++)
+        {
+            var taskToMove = i % 2 == 0 ? task2 : task1;
+            var updateResponse = await _client.PutAsJsonAsync<MoveTodoTaskDto>($"/tasks/{taskToMove.Id}/move", moveDto);
+
+        }
+
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>($"/tasks?pagenumber=1&pagesize=10");
+        task1.Position = uint.MaxValue / 2;
+        task2.Position = (ulong)uint.MaxValue;
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto> { task1, task2, task3 }, 1, 10, 3);
+        tasksResponse!.Should().BeEquivalentTo(expectedResponse);
+    }
+
+    [Fact]
+    public async Task TestRebalancingSubTasksDuringTaskReordering()
+    {
+        var task1 = await CreateRandomTodoTask("Summary1");
+        var task1_1 = await CreateRandomTodoTask("Summary1.1", parent: task1);
+        var task1_2 = await CreateRandomTodoTask("Summary1.2", parent: task1);
+        var task2 = await CreateRandomTodoTask("Summary2");
+        var task2_1 = await CreateRandomTodoTask("Summary2.1", parent: task2);
+        var task2_2 = await CreateRandomTodoTask("Summary2.2", parent: task2);
+        var task2_3 = await CreateRandomTodoTask("Summary2.3", parent: task2);
+        var task3 = await CreateRandomTodoTask("Summary3");
+        var task3_1 = await CreateRandomTodoTask("Summary3.1", parent: task3);
+
+        var moveDto = new MoveTodoTaskDto(0);
+        // 30 moves exhausts the available space between 0 and first tasks position. move #31 triggers rebalancing
+        for (int i = 0; i < 32; i++)
+        {
+            var taskToMove = i % 2 == 0 ? task2_2 : task2_1;
+            var updateResponse = await _client.PutAsJsonAsync<MoveTodoTaskDto>($"/tasks/{taskToMove.Id}/move", moveDto);
+
+        }
+
+        var tasksResponse = await _client.GetFromJsonAsync<PaginatedResponse<TodoTaskDto>>($"/tasks/{task2.Id}/subtasks?pagenumber=1&pagesize=10");
+        task2_1.Position = uint.MaxValue / 2;
+        task2_2.Position = (ulong)uint.MaxValue;
+        var expectedResponse = new PaginatedResponse<TodoTaskDto>(new List<TodoTaskDto> { task2_1, task2_2, task2_3 }, 1, 10, 3);
         tasksResponse!.Should().BeEquivalentTo(expectedResponse);
     }
 

@@ -9,13 +9,13 @@ public class PaginationFilter
     {
         PageNumber = 1;
         PageSize = 10;
-        SortOrder = "createDate";
+        SortOrder = "position";
     }
     public PaginationFilter(int pageNumber, int pageSize, string? sortOrder = null)
     {
         PageNumber = pageNumber < 1 ? 1 : pageNumber;
         PageSize = pageSize > maxPageSize ? maxPageSize : pageSize;
-        SortOrder = SortOrder ?? "createDate";
+        SortOrder = SortOrder ?? "position";
 
     }
 }

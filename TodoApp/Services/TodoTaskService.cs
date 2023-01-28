@@ -81,23 +81,23 @@ public class TodoTaskService : ITodoTaskService
         }
         Guid? newParentId = updateDto.ParentId;
         ulong newPosition = existingItem.Position;
-        if (existingItem.ParentId != newParentId && newParentId.HasValue)
+        if (existingItem.ParentId != newParentId)
         {
-            var newParent = await GetTodoTaskAsync(newParentId.Value);
-            if (newParent != null)
+            if (newParentId.HasValue)
             {
-                if (newParent.ParentId == id)
+                var newParent = await GetTodoTaskAsync(newParentId.Value);
+                if (newParent == null)
+                {
+                    // TODO create custom exception + exception handler
+                    throw new Exception("Invalid ParentId");
+                }
+                else if (newParent.ParentId == id)
                 {
                     // TODO create custom exception + exception handler
                     throw new Exception("Updating ParentID would cause circular relationship!");
                 }
-                newPosition = await GetNextPositionAsync(newParentId);
             }
-            else
-            {
-                // TODO create custom exception + exception handler
-                throw new Exception("Invalid ParentId");
-            }
+            newPosition = await GetNextPositionAsync(newParentId);
         }
 
         existingItem.Summary = updateDto.Summary;
