@@ -35,7 +35,7 @@
             New
         </button>
     </nav>
-    <div class="container-fluid">
+    <div class="container">
         <div class="d-flex flex-wrap align-items-start flex-column" id="root"></div>
         <div id="loadmore-root"></div>
     </div>
@@ -124,7 +124,7 @@
                         {
                             $(`#body-${element.id}`).on('show.bs.collapse', () =>
                             {
-                                if ($("#subtasksbody-" + element.id).children().length < 2)
+                                if ($("#subtasksbody-" + element.id).children().length < 1)
                                 {
                                     loadSubtasks(element.id);
                                     console.log("Loaded subtasks!")
@@ -304,12 +304,12 @@
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item"><b>Create date</b> ${task.createDate}</li>
-                        <li class="list-group-item"><b>Due Date</b> ${task.dueDate}</li>
+                        <li class="list-group-item"><b>Due Date</b> ${task.dueDate ?? "-"}</li>
                         <li class="list-group-item"><b>Priority</b> ${task.priority}</li>
                         <li class="list-group-item"><b>Status</b> ${statusChoices[task?.status] ?? "Unknown status"}</li>
                         <li class="list-group-item">
                             Move to Position: 
-                            <select id="move-${task.id}">
+                            <select class="select-position" id="move-${task.id}">
                                 ${sameLevelTasks.map((t, i) => `<option value="${i}" ${t.id === task.id ? "selected" : ""}>${i}</option>`).join("")};
                             </select>
                             <button class="btn btn-secondary float-end" onClick="changePosition('${task.id}')">Move</button>
