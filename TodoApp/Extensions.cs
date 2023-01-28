@@ -17,6 +17,7 @@ public static class Extensions
             todoTask.Priority,
             todoTask.Status,
             todoTask.ParentId,
+            todoTask.Position,
             todoTask.SubTaskCount
             );
     }

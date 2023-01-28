@@ -23,6 +23,9 @@ public class TodoTask
     [Required]
     public TodoTaskStatus Status { get; set; }
 
+    [Required]
+    public ulong Position { get; set; }
+
     public Guid? ParentId { get; set; }
 
     [ForeignKey("ParentId")]
@@ -31,7 +34,7 @@ public class TodoTask
     [NotMapped]
     public int SubTaskCount { get; set; } = 0;
 
-    public TodoTask(Guid id, string summary, string? description, DateTimeOffset createDate, DateTimeOffset? dueDate, int priority, TodoTaskStatus status, Guid? parentId)
+    public TodoTask(Guid id, string summary, string? description, DateTimeOffset createDate, DateTimeOffset? dueDate, int priority, TodoTaskStatus status, ulong position, Guid? parentId)
     {
         Id = id;
         Summary = summary;
@@ -40,6 +43,7 @@ public class TodoTask
         DueDate = dueDate;
         Priority = priority;
         Status = status;
+        Position = position;
         ParentId = parentId;
     }
 

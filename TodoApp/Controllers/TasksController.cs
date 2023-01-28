@@ -53,7 +53,7 @@ public class TasksController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteTodoTaskAsync(Guid id)
     {
-        bool deleted = await _tasksService.DeleteTodoTask(id);
+        bool deleted = await _tasksService.DeleteTodoTaskAsync(id);
         // Only reason for false is if the task is not found
         if (!deleted)
         {
@@ -65,11 +65,18 @@ public class TasksController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateTodoTaskAsync(Guid id, UpdateTodoTaskDto updateTodoTask)
     {
-        var updated = await _tasksService.UpdateTodoTask(id, updateTodoTask);
+        var updated = await _tasksService.UpdateTodoTaskAsync(id, updateTodoTask);
         if (!updated)
         {
             return NotFound();
         }
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/move")]
+    public async Task<IActionResult> MoveTodoTaskAsync(Guid id, MoveTodoTaskDto moveDto)
+    {
+        await _tasksService.UpdateTaskPositionAsync(id, moveDto.newIndex);
         return NoContent();
     }
 

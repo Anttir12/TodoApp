@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TodoApp.Migrations
 {
     /// <inheritdoc />
-    public partial class initial : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -25,6 +25,7 @@ namespace TodoApp.Migrations
                     DueDate = table.Column<DateTimeOffset>(type: "datetime(6)", nullable: true),
                     Priority = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
+                    Position = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     ParentId = table.Column<Guid>(type: "char(36)", nullable: true)
                 },
                 constraints: table =>
@@ -39,9 +40,10 @@ namespace TodoApp.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TodoTask_ParentId",
+                name: "IX_TodoTask_ParentId_Position",
                 table: "TodoTask",
-                column: "ParentId");
+                columns: new[] { "ParentId", "Position" },
+                unique: true);
         }
 
         /// <inheritdoc />

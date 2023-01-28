@@ -37,13 +37,15 @@ public class TodoTaskService : ITodoTaskService
             createDto.DueDate,
             createDto.Priority,
             createDto.Status,
+            await GetNextPositionAsync(createDto.ParentId),
             createDto.ParentId
         );
         await _repository.CreateTodoTaskAsync(task);
+
         return task.asDto();
     }
 
-    public async Task<bool> DeleteTodoTask(Guid id)
+    public async Task<bool> DeleteTodoTaskAsync(Guid id)
     {
         var todoTask = await _repository.GetTodoTaskAsync(id);
         if (todoTask == null)
@@ -70,7 +72,7 @@ public class TodoTaskService : ITodoTaskService
 
     }
 
-    public async Task<bool> UpdateTodoTask(Guid id, UpdateTodoTaskDto updateDto)
+    public async Task<bool> UpdateTodoTaskAsync(Guid id, UpdateTodoTaskDto updateDto)
     {
         var existingItem = await _repository.GetTodoTaskAsync(id);
         if (existingItem == null)
@@ -78,6 +80,7 @@ public class TodoTaskService : ITodoTaskService
             return false;
         }
         Guid? newParentId = updateDto.ParentId;
+        ulong newPosition = existingItem.Position;
         if (existingItem.ParentId != newParentId && newParentId.HasValue)
         {
             var newParent = await GetTodoTaskAsync(newParentId.Value);
@@ -88,6 +91,7 @@ public class TodoTaskService : ITodoTaskService
                     // TODO create custom exception + exception handler
                     throw new Exception("Updating ParentID would cause circular relationship!");
                 }
+                newPosition = await GetNextPositionAsync(newParentId);
             }
             else
             {
@@ -101,8 +105,24 @@ public class TodoTaskService : ITodoTaskService
         existingItem.DueDate = updateDto.DueDate;
         existingItem.Priority = updateDto.Priority;
         existingItem.Status = updateDto.Status;
+        existingItem.Position = newPosition;
         existingItem.ParentId = newParentId;
         _repository.UpdateTodoTask(existingItem);
         return true;
+    }
+
+    public async Task UpdateTaskPositionAsync(Guid taskId, int newIndex)
+    {
+        await _repository.UpdateTaskPositionAsync(taskId, newIndex);
+    }
+
+    private async Task<ulong> GetNextPositionAsync(Guid? parentId)
+    {
+        var currentMaxPosition = await _repository.GetMaxPositionAsync(parentId);
+        if (currentMaxPosition >= (ulong.MaxValue - uint.MaxValue))
+        {
+            throw new Exception("Yo dude that is waaay to many tasks. I don't even bother supporting that");
+        }
+        return currentMaxPosition + uint.MaxValue;
     }
 }

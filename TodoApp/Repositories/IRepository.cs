@@ -15,4 +15,10 @@ public interface IRepository
 
     void UpdateTodoTask(TodoTask obj);
 
+    Task<ulong> GetMaxPositionAsync(Guid? parentId = null);
+
+    Task UpdateTaskPositionAsync(Guid taskId, int newIndex);
+
+    Task RebalancePositionAsync(Guid? parentId);
+
 }

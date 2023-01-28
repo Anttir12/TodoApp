@@ -37,6 +37,9 @@ namespace TodoApp.Migrations
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("char(36)");
 
+                    b.Property<ulong>("Position")
+                        .HasColumnType("bigint unsigned");
+
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
@@ -49,7 +52,8 @@ namespace TodoApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentId");
+                    b.HasIndex("ParentId", "Position")
+                        .IsUnique();
 
                     b.ToTable("TodoTask");
                 });
@@ -57,13 +61,13 @@ namespace TodoApp.Migrations
             modelBuilder.Entity("TodoApp.Models.TodoTask", b =>
                 {
                     b.HasOne("TodoApp.Models.TodoTask", null)
-                        .WithMany("subTasks")
+                        .WithMany("SubTasks")
                         .HasForeignKey("ParentId");
                 });
 
             modelBuilder.Entity("TodoApp.Models.TodoTask", b =>
                 {
-                    b.Navigation("subTasks");
+                    b.Navigation("SubTasks");
                 });
 #pragma warning restore 612, 618
         }

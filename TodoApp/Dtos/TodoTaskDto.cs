@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using TodoApp.Models;
 using TodoApp.Pagination;
 
 namespace TodoApp.Dtos;
 
+[Index(nameof(ParentId), nameof(Position), IsUnique = true)]
 public class TodoTaskDto
 {
     public Guid Id { get; set; }
@@ -13,6 +15,7 @@ public class TodoTaskDto
     public int Priority { get; set; }
     public TodoTaskStatus Status { get; set; }
     public Guid? ParentId { get; set; }
+    public ulong Position { get; set; }
     public int SubTaskCount { get; set; }
 
     public TodoTaskDto(Guid id,
@@ -23,6 +26,7 @@ public class TodoTaskDto
                        int priority,
                        TodoTaskStatus status,
                        Guid? parentId,
+                       ulong position,
                        int subTaskCount)
     {
         Id = id;
@@ -33,6 +37,7 @@ public class TodoTaskDto
         Priority = priority;
         Status = status;
         ParentId = parentId;
+        Position = position;
         SubTaskCount = subTaskCount;
     }
 }

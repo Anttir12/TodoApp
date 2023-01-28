@@ -11,8 +11,8 @@ using TodoApp;
 namespace TodoApp.Migrations
 {
     [DbContext(typeof(TodoContext))]
-    [Migration("20230122091617_initial")]
-    partial class initial
+    [Migration("20230126200820_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -40,6 +40,9 @@ namespace TodoApp.Migrations
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("char(36)");
 
+                    b.Property<ulong>("Position")
+                        .HasColumnType("bigint unsigned");
+
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
@@ -52,7 +55,8 @@ namespace TodoApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentId");
+                    b.HasIndex("ParentId", "Position")
+                        .IsUnique();
 
                     b.ToTable("TodoTask");
                 });
@@ -60,13 +64,13 @@ namespace TodoApp.Migrations
             modelBuilder.Entity("TodoApp.Models.TodoTask", b =>
                 {
                     b.HasOne("TodoApp.Models.TodoTask", null)
-                        .WithMany("subTasks")
+                        .WithMany("SubTasks")
                         .HasForeignKey("ParentId");
                 });
 
             modelBuilder.Entity("TodoApp.Models.TodoTask", b =>
                 {
-                    b.Navigation("subTasks");
+                    b.Navigation("SubTasks");
                 });
 #pragma warning restore 612, 618
         }

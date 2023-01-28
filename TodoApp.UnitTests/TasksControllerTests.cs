@@ -98,6 +98,7 @@ public class TaskControllerTest
             createDto.DueDate,
             createDto.Priority,
             createDto.Status,
+            uint.MaxValue,
             createDto.ParentId
         );
 
@@ -121,7 +122,7 @@ public class TaskControllerTest
     public async Task UpdateTodoTaskAsync_WithExistingTask_ReturnsNoContent()
     {
         TodoTask existingTask = CreateRandomTask();
-        mockedService.Setup(s => s.UpdateTodoTask(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
+        mockedService.Setup(s => s.UpdateTodoTaskAsync(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
         .ReturnsAsync(true);
 
         var controller = new TasksController(mockedService.Object);
@@ -133,7 +134,7 @@ public class TaskControllerTest
     [Fact]
     public async Task UpdateTodoTaskAsync_WithNonexistingTask_ReturnsNotFound()
     {
-        mockedService.Setup(s => s.UpdateTodoTask(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
+        mockedService.Setup(s => s.UpdateTodoTaskAsync(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>()))
         .ReturnsAsync(false);
 
         var controller = new TasksController(mockedService.Object);
@@ -218,7 +219,7 @@ public class TaskControllerTest
     {
         TodoTask existingTask = CreateRandomTask();
 
-        mockedService.Setup(s => s.DeleteTodoTask(It.IsAny<Guid>()))
+        mockedService.Setup(s => s.DeleteTodoTaskAsync(It.IsAny<Guid>()))
         .ReturnsAsync(true);
 
         var controller = new TasksController(mockedService.Object);
@@ -250,6 +251,7 @@ public class TaskControllerTest
             dueDate: DateTimeOffset.UtcNow,
             priority: rand.Next(5),
             status: (TodoTaskStatus)rand.Next(statuses.Length),
+            position: uint.MaxValue,
             parentId: parent?.Id
         );
         if (parent != null)

@@ -10,11 +10,12 @@
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-between">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-between ps-3 pe-3">
         <a class="navbar-brand mr-5" href="/">TodoApp</a>
         <form class="form-inline" id="searchForm">
             <span class="navbar-text mr-2">Sorting</span>
             <select id="sortField" class="mr-2">
+                <option value="position">Position</option>
                 <option value="createDate">Create Date</option>
                 <option value="summary">Summary</option>
                 <option value="description">Description</option>
@@ -24,13 +25,13 @@
             </select>
             <select id="sortOrder">
                 <option value="">Ascending</option>
-                <option value="_desc">Descening</option>
+                <option value="_desc">Descending</option>
             </select>
-            <button type="button" class="btn btn-primary ml-4" id="searchButton">
+            <button type="button" class="btn btn-primary ms-4" id="searchButton">
                 Search
             </button>
         </form>
-        <button type="button" class="btn btn-primary ml-4" data-bs-toggle="modal" data-bs-target="#createModal">
+        <button type="button" class="btn btn-primary ms-4" data-bs-toggle="modal" data-bs-target="#createModal">
             New
         </button>
     </nav>
@@ -88,21 +89,16 @@
         $(document).ready(() =>
         {
             $("#create-task-modal-body").append(TodoTaskFormTemplate());
-            $("#searchButton").click(search)
+            $("#searchButton").click(resetAndSearch)
             fetchTasks();
         });
 
-        const reset = () =>
+        const resetAndSearch = () =>
         {
             todoTaskData = []
             todoTaskLookup = {}
             nextPage = null;
             $("#root").empty();
-        }
-
-        const search = () =>
-        {
-            reset();
             fetchTasks();
         }
 
@@ -111,7 +107,7 @@
             let sortOrder = $("#sortField").val() + ($("#sortOrder").val() ?? "");
             $.get({
                 url: "/tasks",
-                data: { pagenumber: 1, pagesize: 50, sortOrder: sortOrder },
+                data: { pagenumber: 1, pagesize: 1000, sortOrder: sortOrder },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
@@ -121,10 +117,11 @@
                     response.data.forEach(element =>
                     {
                         $("#root").append(TodoTaskCardTemplate(element))
+                        element.subTasks = [];
                         todoTaskLookup[element.id] = element;
                     });
                 },
-                fail: (e) =>
+                error: (e) =>
                 {
                     window.alert("Error!");
                     console.log(e);
@@ -170,11 +167,11 @@
                     else if (xhr.status == 201)
                     {
                         window.alert("Task created");
-                        search();
+                        resetAndSearch();
                         $("#createModal").modal("toggle");
                     }
                 },
-                fail: (data) =>
+                error: (data) =>
                 {
                     window.alert("Submit failed");
                 }
@@ -185,7 +182,7 @@
         {
             $.get({
                 url: "/tasks/" + parentId + "/subtasks",
-                data: { pagenumber: 1, pagesize: 50 },
+                data: { pagenumber: 1, pagesize: 1000 },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
@@ -195,10 +192,11 @@
                     response.data.forEach(element =>
                     {
                         $("#body-" + parentId).append(TodoTaskCardTemplate(element))
+                        element.subTasks = [];
                         todoTaskLookup[element.id] = element;
                     });
                 },
-                fail: (e) =>
+                error: (e) =>
                 {
                     window.alert("Error!");
                     console.log(e);
@@ -208,14 +206,14 @@
 
         const updateTask = (id) =>
         {
-            task = todoTaskLookup[id];
+            let task = todoTaskLookup[id];
             console.log("Found the task: ")
             console.log(task)
             $("#update-task-modal-body").html(TodoTaskFormTemplate(task));
             $("#updateModal").modal("toggle");
         }
 
-        const DeleteTask = (id) =>
+        const deleteTask = (id) =>
         {
             if (!window.confirm(`Are you sure you want to delete task ${id}?`))
             {
@@ -229,15 +227,36 @@
                     $("#card-" + id).remove();
                     window.alert("Task deleted!");
                 },
-                fail: () =>
+                error: () =>
                 {
                     window.alert("Task deletion failed!");
                 }
             });
         }
 
+        const changePosition = (taskId) =>
+        {
+            let task = todoTaskLookup[taskId];
+            let newIndex = parseInt($(`#move-${task.id}`).val());
+            $.ajax({
+                url: `/tasks/${taskId}/move`,
+                type: "PUT",
+                data: JSON.stringify({ "newIndex": newIndex }),
+                contentType: "application/json",
+                success: () =>
+                {
+                    resetAndSearch();
+                },
+                error: () =>
+                {
+                    window.alert("Move failed. Try refreshing the page and try again")
+                }
+            });
+        }
+
         const TodoTaskCardTemplate = (task) =>
         {
+            let sameLevelTasks = task.parentId != null ? todoTaskLookup[task.parentId].subTasks : todoTaskData
             isSubtask = Boolean(task.parentId);
             return `
             <div class="card ${!isSubtask ? 'm-4' : ''}" style="width: 25rem;" id="card-${task.id}">
@@ -257,12 +276,19 @@
                         <li class="list-group-item"><b>Status</b> ${statusChoices[task?.status] ?? "Unknown status"}</li>
                         <li class="list-group-item"><b>Has Parent?</b> ${task.parentId !== null}</li>
                         <li class="list-group-item">
+                            Move to Position: 
+                            <select id="move-${task.id}">
+                                ${sameLevelTasks.map((t, i) => `<option value="${i}" ${t.id === task.id ? "selected" : ""}>${i}</option>`).join("")};
+                            </select>
+                            <button class="btn btn-secondary" onClick="changePosition('${task.id}')">Move</button>
+                        </li>
+                        <li class="list-group-item">
                             <b>SubTaskCount</b> ${task.subTaskCount}
                             ${task.subTaskCount > 0 ? `<br><a href="#" onClick="loadSubtasks('${task.id}')">Load subtasks</a>` : ''}
                         </li>
                     </ul>
                     <button class="btn btn-primary m-3 float-start" onClick='updateTask("${task.id}")'><b>Update</b></button>
-                    <button class="btn btn-danger m-3 float-end" onClick='DeleteTask("${task.id}")'><b>DELETE</b></button>
+                    <button class="btn btn-danger m-3 float-end" onClick='deleteTask("${task.id}")'><b>DELETE</b></button>
                 </div>
             </div>
             `
@@ -289,7 +315,7 @@
                     <label for="status" class="form-label">Status</label>
                     <select name="status">
                         ${Object.keys(statusChoices).map((key, index) =>
-                `<option value="${key}" ${key == task?.status ? 'selected' : ''}>${statusChoices[key]}</option>`)}
+                `<option value="${key}" ${key == task?.status ? 'selected' : ''}>${statusChoices[key]}</option>`).join("")}
                     </select>
                 </div>
                 <div class="mb-2">
