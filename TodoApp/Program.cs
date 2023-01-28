@@ -38,6 +38,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.UseMiddleware<CustomExceptionHandlingMiddleware>();
+
 app.Run();
 
 public partial class Program { }

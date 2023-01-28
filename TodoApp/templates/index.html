@@ -195,7 +195,10 @@
                 },
                 error: (data) =>
                 {
-                    window.alert("Submit failed");
+                    let err = data?.responseJSON?.error
+                    let message = "Submit failed " + (err !== undefined ? "\n\n" + err : "")
+                    console.log(message)
+                    window.alert(message);
                 }
             });
         }

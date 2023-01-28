@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using TodoApp.Dtos;
+using TodoApp.Exceptions;
 using TodoApp.Models;
 using TodoApp.Pagination;
 using TodoApp.Repositories;
@@ -24,7 +25,7 @@ public class TodoTaskService : ITodoTaskService
             parentTask = await GetTodoTaskAsync(createDto.ParentId.Value);
             if (parentTask == null)
             {
-                throw new Exception("Invalid parent task"); //TODO Better error messages
+                throw new InvalidForeignKeyException("Parent task not found");
             }
         }
 
@@ -88,13 +89,11 @@ public class TodoTaskService : ITodoTaskService
                 var newParent = await GetTodoTaskAsync(newParentId.Value);
                 if (newParent == null)
                 {
-                    // TODO create custom exception + exception handler
-                    throw new Exception("Invalid ParentId");
+                    throw new InvalidForeignKeyException("Parent task not found");
                 }
                 else if (newParent.ParentId == id)
                 {
-                    // TODO create custom exception + exception handler
-                    throw new Exception("Updating ParentID would cause circular relationship!");
+                    throw new InvalidForeignKeyException("Updating ParentID would cause circular relationship!");
                 }
             }
             newPosition = await GetNextPositionAsync(newParentId);
@@ -121,7 +120,7 @@ public class TodoTaskService : ITodoTaskService
         var currentMaxPosition = await _repository.GetMaxPositionAsync(parentId);
         if (currentMaxPosition >= (ulong.MaxValue - uint.MaxValue))
         {
-            throw new Exception("Yo dude that is waaay to many tasks. I don't even bother supporting that");
+            throw new TooManyTasksException("Yo dude that is waaay to many tasks. I don't even bother supporting that");
         }
         return currentMaxPosition + uint.MaxValue;
     }
