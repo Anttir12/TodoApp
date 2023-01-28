@@ -90,8 +90,6 @@ public class MySqlRepository : IRepository
 
     private IQueryable<TodoTask> CreateTodoTasksQuery(Expression<Func<TodoTask, bool>>? filter = null)
     {
-        // TODO: For some reason couldn't figure out how to do this to get subtask count in the same query:
-        // SELECT t1.*, count(t2.id) as SubTaskCount FROM TodoTask t1 LEFT JOIN TodoTask t2 ON t1.id = t2.ParentId GROUP BY t1.id;
         IQueryable<TodoTask> query = _context.TodoTask.Include(t => t.SubTasks);
         if (filter != null)
             query = query.Where(filter);
@@ -112,7 +110,6 @@ public class MySqlRepository : IRepository
 
     public void DeleteTodoTask(TodoTask obj)
     {
-        // TODO: Another way to do this: _context.TodoTask.Where(t => t.Id == obj.Id).ExecuteDeleteAsync();
         _context.TodoTask.Remove(obj);
         _context.SaveChanges();
     }
@@ -152,7 +149,6 @@ public class MySqlRepository : IRepository
 
     public async Task RebalancePositionAsync(Guid? parentId)
     {
-        // TODO Try to use LINQ here
         await _context.Database.ExecuteSqlRawAsync(@$"
         UPDATE TodoTask t 
             JOIN 
@@ -182,7 +178,7 @@ public class MySqlRepository : IRepository
         if (positionAtNewIndex <= 1)
         {
             await RebalancePositionAsync(task.ParentId);
-            // TODO We might not need call this again because we should know the position of index 0 after rebalancing.
+            // We should know the position now but to be on the safer side lets just call this again.
             await UpdateTaskPositionAsync(taskId, newIndex);
             return;
         }

@@ -142,78 +142,7 @@ public class TaskControllerTest
         var result = await controller.UpdateTodoTaskAsync(It.IsAny<Guid>(), It.IsAny<UpdateTodoTaskDto>());
         result.Should().BeOfType<NotFoundResult>();
     }
-    /* TODO: Move to service unit tests
 
-    [Fact]
-    public async Task UpdateTodoTaskAsync_MoveChildToTopLevel_ReturnsNoContent()
-    {
-
-        TodoTask parentTask = CreateRandomTask();
-        TodoTask childTask = CreateRandomTask(parentTask);
-        mockedService.Setup(s => s.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync(childTask.asDto());
-
-        var controller = new TasksController(mockedService.Object);
-        var taskToUpdate = new UpdateTodoTaskDto(
-            summary: "updated summary",
-            description: null,
-            dueDate: DateTimeOffset.UtcNow,
-            priority: parentTask.Priority + 1,
-            status: TodoTaskStatus.Done,
-            parentId: null
-        );
-
-        var result = await controller.UpdateTodoTaskAsync(childTask.Id, taskToUpdate);
-        result.Should().BeOfType<NoContentResult>();
-    }
-
-    [Fact]
-    public async Task UpdateTodoTaskAsync_WithInvalidParentId_ReturnsBadRequest()
-    {
-        TodoTask existingTask = CreateRandomTask();
-        mockedService.SetupSequence(r => r.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync(existingTask.asDto()) // First getting the task to be updated
-        .ReturnsAsync((TodoTaskDto)null!);  // Parent does not exist
-
-
-        var controller = new TasksController(mockedService.Object);
-        var taskToUpdate = new UpdateTodoTaskDto(
-            summary: "updated summary",
-            description: null,
-            dueDate: DateTimeOffset.UtcNow,
-            priority: 2,
-            status: TodoTaskStatus.Done,
-            parentId: Guid.NewGuid()
-        );
-
-        var result = await controller.UpdateTodoTaskAsync(Guid.NewGuid(), taskToUpdate);
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task UpdateTodoTaskAsync_WithCircularParentChild_ReturnsBadRequest()
-    {
-
-        TodoTask parentTask = CreateRandomTask();
-        TodoTask childTask = CreateRandomTask(parentTask);
-        mockedService.SetupSequence(r => r.GetTodoTaskAsync(It.IsAny<Guid>()))
-        .ReturnsAsync(parentTask.asDto()) // First getting the task to be updated
-        .ReturnsAsync(childTask.asDto());  // Then the new Parent for parentTask
-
-        var controller = new TasksController(mockedService.Object);
-        var taskToUpdate = new UpdateTodoTaskDto(
-            summary: "updated summary",
-            description: null,
-            dueDate: DateTimeOffset.UtcNow,
-            priority: parentTask.Priority + 1,
-            status: TodoTaskStatus.Done,
-            parentId: childTask.Id
-        );
-
-        var result = await controller.UpdateTodoTaskAsync(parentTask.Id, taskToUpdate);
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-    */
     [Fact]
     public async Task DeleteTodoTaskAsync_ExistingTask_ReturnsNoContent()
     {

@@ -80,7 +80,6 @@ public class TasksController : ControllerBase
         return NoContent();
     }
 
-    // TODO: Maybe DI or something. Request is only null during UnitTests afaik.
     private Uri? GetCurrentUri()
     {
         if (Request == null)

@@ -15,7 +15,7 @@ builder.Services.AddDbContext<TodoContext>(opt => opt.UseMySQL(
     builder.Configuration.GetConnectionString("MySqlDatabase") ??
     throw new ArgumentNullException("Missing MySqlDatabase ConnectionString")
 ));
-// TODO: Check if this could be something else
+
 builder.Services.AddScoped<IRepository, MySqlRepository>();
 builder.Services.AddScoped<ITodoTaskService, TodoTaskService>();
 
