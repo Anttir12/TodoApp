@@ -36,7 +36,8 @@
         </button>
     </nav>
     <div class="container-fluid">
-        <div class="d-flex flex-wrap  align-items-start" id="root"></div>
+        <div class="d-flex flex-wrap align-items-start flex-column" id="root"></div>
+        <div id="loadmore-root"></div>
     </div>
 
     <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
@@ -84,7 +85,7 @@
             "2": "Done",
             "3": "Pending",
         }
-        let nextPage = null;
+        const pagesize = 1000;
 
         $(document).ready(() =>
         {
@@ -97,33 +98,54 @@
         {
             todoTaskData = []
             todoTaskLookup = {}
-            nextPage = null;
             $("#root").empty();
+            $("#loadmore-root").empty();
             fetchTasks();
         }
 
-        const fetchTasks = () =>
+        const fetchTasks = (pagenumber = 1) =>
         {
             let sortOrder = $("#sortField").val() + ($("#sortOrder").val() ?? "");
             $.get({
                 url: "/tasks",
-                data: { pagenumber: 1, pagesize: 1000, sortOrder: sortOrder },
+                data: { pagenumber: pagenumber, pagesize: pagesize, sortOrder: sortOrder },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
                     console.log(response);
                     todoTaskData.push(...(response.data ?? []));
                     nextPage = response.nextPage;
+                    let pageCount = response.pageCount;
                     response.data.forEach(element =>
                     {
                         $("#root").append(TodoTaskCardTemplate(element))
                         element.subTasks = [];
+                        if (element.subTaskCount > 0)
+                        {
+                            $(`#body-${element.id}`).on('show.bs.collapse', () =>
+                            {
+                                if ($("#subtasksbody-" + element.id).children().length < 2)
+                                {
+                                    loadSubtasks(element.id);
+                                    console.log("Loaded subtasks!")
+                                }
+                            })
+                        }
                         todoTaskLookup[element.id] = element;
                     });
+                    if (response.pageCount > pagenumber)
+                    {
+                        $("#loadmore-root").html(`
+                        <br><a href="#" onClick="fetchTasks(${pagenumber + 1})"> Load more </a>
+                        `)
+                    } else
+                    {
+                        $("#loadmore-root").empty();
+                    }
                 },
                 error: (e) =>
                 {
-                    window.alert("Error!");
+                    window.alert("Error loading tasks!");
                     console.log(e);
                 }
             });
@@ -178,23 +200,31 @@
             });
         }
 
-        const loadSubtasks = (parentId) =>
+        const loadSubtasks = (parentId, pagenumber = 1) =>
         {
             $.get({
                 url: "/tasks/" + parentId + "/subtasks",
-                data: { pagenumber: 1, pagesize: 1000 },
+                data: { pagenumber: pagenumber, pagesize: pagesize },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
                     console.log(response);
                     //todoTaskData.push(...(response.data ?? []));
-                    //nextPage = response.nextPage;
                     response.data.forEach(element =>
                     {
-                        $("#body-" + parentId).append(TodoTaskCardTemplate(element))
+                        $("#subtasksbody-" + parentId).append(TodoTaskCardTemplate(element))
                         element.subTasks = [];
                         todoTaskLookup[element.id] = element;
                     });
+                    if (response.pageCount > pagenumber)
+                    {
+                        $("#loadmore-" + parentId).html(`
+                        <br><a href="#" onClick="loadSubtasks('${parentId}',${pagenumber + 1})"> Load more </a>
+                        `)
+                    } else
+                    {
+                        $("#loadmore-" + parentId).empty();
+                    }
                 },
                 error: (e) =>
                 {
@@ -261,7 +291,7 @@
             return `
             <div class="card ${!isSubtask ? 'm-4' : ''}" style="width: 25rem;" id="card-${task.id}">
                 <div class="card-header collapsed" data-bs-toggle="collapse" href="#body-${task.id}" role="button" 
-                    aria-expanded="false" aria-controls="body-${task.id}"">
+                    aria-expanded="false" aria-controls="body-${task.id}" id="collapse-${task.id}">
                     <b>${task.summary}</b><br>
                     <small>${task.id}</small>
                 </div>
@@ -274,21 +304,25 @@
                         <li class="list-group-item"><b>Due Date</b> ${task.dueDate}</li>
                         <li class="list-group-item"><b>Priority</b> ${task.priority}</li>
                         <li class="list-group-item"><b>Status</b> ${statusChoices[task?.status] ?? "Unknown status"}</li>
-                        <li class="list-group-item"><b>Has Parent?</b> ${task.parentId !== null}</li>
                         <li class="list-group-item">
                             Move to Position: 
                             <select id="move-${task.id}">
                                 ${sameLevelTasks.map((t, i) => `<option value="${i}" ${t.id === task.id ? "selected" : ""}>${i}</option>`).join("")};
                             </select>
-                            <button class="btn btn-secondary" onClick="changePosition('${task.id}')">Move</button>
+                            <button class="btn btn-secondary float-end" onClick="changePosition('${task.id}')">Move</button>
                         </li>
                         <li class="list-group-item">
-                            <b>SubTaskCount</b> ${task.subTaskCount}
-                            ${task.subTaskCount > 0 ? `<br><a href="#" onClick="loadSubtasks('${task.id}')">Load subtasks</a>` : ''}
+                            <button class="btn btn-primary mt-3 mb-3 float-start" onClick='updateTask("${task.id}")'><b>Update</b></button>
+                            <button class="btn btn-danger mt-3 mb-3 float-end" onClick='deleteTask("${task.id}")'><b>DELETE</b></button>
+                        </li>
+                        <li class="list-group-item px-0">
+                            <div id="subtasksheader-${task.id}" class="px-3">
+                                <b>Subtasks (${task.subTaskCount})<br></b>
+                            </div>
+                            <div id="subtasksbody-${task.id}"></div>
+                            <div id="loadmore-${task.id}"></div>
                         </li>
                     </ul>
-                    <button class="btn btn-primary m-3 float-start" onClick='updateTask("${task.id}")'><b>Update</b></button>
-                    <button class="btn btn-danger m-3 float-end" onClick='deleteTask("${task.id}")'><b>DELETE</b></button>
                 </div>
             </div>
             `
