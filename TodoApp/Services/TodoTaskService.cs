@@ -70,7 +70,6 @@ public class TodoTaskService : ITodoTaskService
         var count = result.count;
         return new PaginatedResponse<TodoTaskDto>(tasks.Select(t => t.asDto()).ToList(),
          paginationFilter.PageNumber, paginationFilter.PageSize, count);
-
     }
 
     public async Task<bool> UpdateTodoTaskAsync(Guid id, UpdateTodoTaskDto updateDto)
@@ -91,7 +90,7 @@ public class TodoTaskService : ITodoTaskService
                 {
                     throw new InvalidForeignKeyException("Parent task not found");
                 }
-                else if (newParent.ParentId == id)
+                else if (newParent.ParentId == existingItem.Id)
                 {
                     throw new InvalidForeignKeyException("Updating ParentID would cause circular relationship!");
                 }
