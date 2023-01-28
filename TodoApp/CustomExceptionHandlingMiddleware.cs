@@ -47,6 +47,7 @@ public class CustomExceptionHandlingMiddleware
         {
             message = "Internal Server error. Contact support if this continues";
             status = HttpStatusCode.InternalServerError;
+            _logger.LogError(exception.Message);
             _logger.LogError(exception.StackTrace);
         }
         var exceptionResult = JsonSerializer.Serialize(new { error = message });
