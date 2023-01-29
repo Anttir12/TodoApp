@@ -16,14 +16,19 @@ public class TasksController : ControllerBase
         _tasksService = tasksService;
     }
 
+    /// <response code="204">Task was successfully created</response>
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<TodoTaskDto>> CreateTodoTaskAsync(CreateTodoTaskDto createTodoTaskDto)
     {
         var createdTask = await _tasksService.CreateTodoTaskAsync(createTodoTaskDto);
         return CreatedAtAction(nameof(GetTodoTaskAsync), new { Id = createdTask.Id }, createdTask);
     }
 
+
     [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<TodoTaskDto>>> GetTodoTasksAsync([FromQuery] PaginationFilter filter)
     {
         var tasks = await _tasksService.GetTodoTasksAsync(filter, t => t.ParentId == null);
@@ -32,6 +37,8 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TodoTaskDto>> GetTodoTaskAsync(Guid id)
     {
         var task = await _tasksService.GetTodoTaskAsync(id);
@@ -43,6 +50,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet("{id:guid}/subtasks")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<TodoTaskDto>>> GetTodoTaskSubTasksAsync(Guid id, [FromQuery] PaginationFilter filter)
     {
         var tasks = await _tasksService.GetTodoTasksAsync(filter, (t => t.ParentId == id));
@@ -50,7 +58,10 @@ public class TasksController : ControllerBase
         return tasks;
     }
 
+    /// <response code="204">Task was successfully deleted</response>
     [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteTodoTaskAsync(Guid id)
     {
         bool deleted = await _tasksService.DeleteTodoTaskAsync(id);
@@ -62,7 +73,11 @@ public class TasksController : ControllerBase
         return NoContent();
     }
 
+    /// <response code="204">Task was successfully updated</response>
     [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateTodoTaskAsync(Guid id, UpdateTodoTaskDto updateTodoTask)
     {
         var updated = await _tasksService.UpdateTodoTaskAsync(id, updateTodoTask);
@@ -73,7 +88,10 @@ public class TasksController : ControllerBase
         return NoContent();
     }
 
+    /// <response code="204">Task was successfully updated</response>
     [HttpPut("{id:guid}/move")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> MoveTodoTaskAsync(Guid id, MoveTodoTaskDto moveDto)
     {
         bool found = await _tasksService.UpdateTaskPositionAsync(id, moveDto.newIndex);
