@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using TodoApp.Models;
 
 namespace TodoApp.Repositories;
-//docker run --name todomysql -e MYSQL_ROOT_PASSWORD=al66j_1A9h!js -e MYSQL_PASSWORD=todopassword -e MYSQL_USER=todouser -e MYSQL_DATABASE=todoapp -p 8080:8080 -d  mysql
 public interface IRepository
 {
     Task<TodoTask?> GetTodoTaskAsync(Guid id);
