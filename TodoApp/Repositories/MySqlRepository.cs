@@ -160,9 +160,8 @@ public class MySqlRepository : IRepository
         SET t.Position = sub.rn * {uint.MaxValue};", new MySqlParameter("@parentId", parentId));
     }
 
-    public async Task UpdateTaskPositionAsync(Guid taskId, int newIndex)
+    public async Task UpdateTaskPositionAsync(TodoTask task, int newIndex)
     {
-        var task = await GetTodoTaskAsync(taskId);
         var currentTaskAtNewIndex = await GetTaskAtIndex(task.ParentId, newIndex);
         // Assume user wants to move task to end of list if nothing found at newIndex;
         ulong positionAtNewIndex = currentTaskAtNewIndex != null ?
@@ -179,7 +178,7 @@ public class MySqlRepository : IRepository
         {
             await RebalancePositionAsync(task.ParentId);
             // We should know the position now but to be on the safer side lets just call this again.
-            await UpdateTaskPositionAsync(taskId, newIndex);
+            await UpdateTaskPositionAsync(task, newIndex);
             return;
         }
         ulong newPosition;
@@ -208,7 +207,7 @@ public class MySqlRepository : IRepository
         {
             // There was no room between the tasks. Needs rebalancing
             await RebalancePositionAsync(task.ParentId);
-            await UpdateTaskPositionAsync(taskId, newIndex);
+            await UpdateTaskPositionAsync(task, newIndex);
             return;
         }
         task.Position = newPosition;

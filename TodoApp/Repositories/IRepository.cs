@@ -17,7 +17,7 @@ public interface IRepository
 
     Task<ulong> GetMaxPositionAsync(Guid? parentId = null);
 
-    Task UpdateTaskPositionAsync(Guid taskId, int newIndex);
+    Task UpdateTaskPositionAsync(TodoTask obj, int newIndex);
 
     Task RebalancePositionAsync(Guid? parentId);
 

@@ -76,7 +76,11 @@ public class TasksController : ControllerBase
     [HttpPut("{id:guid}/move")]
     public async Task<IActionResult> MoveTodoTaskAsync(Guid id, MoveTodoTaskDto moveDto)
     {
-        await _tasksService.UpdateTaskPositionAsync(id, moveDto.newIndex);
+        bool found = await _tasksService.UpdateTaskPositionAsync(id, moveDto.newIndex);
+        if (!found)
+        {
+            return NotFound();
+        }
         return NoContent();
     }
 

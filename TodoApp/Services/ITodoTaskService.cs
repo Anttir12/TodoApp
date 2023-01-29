@@ -13,7 +13,7 @@ public interface ITodoTaskService
     public Task<TodoTaskDto> CreateTodoTaskAsync(CreateTodoTaskDto createDto);
     public Task<bool> DeleteTodoTaskAsync(Guid id);
     public Task<bool> UpdateTodoTaskAsync(Guid id, UpdateTodoTaskDto updateDto);
-    public Task UpdateTaskPositionAsync(Guid id, int newIndex);
+    public Task<bool> UpdateTaskPositionAsync(Guid id, int newIndex);
 
 
 }

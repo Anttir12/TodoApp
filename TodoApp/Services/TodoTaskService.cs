@@ -109,9 +109,15 @@ public class TodoTaskService : ITodoTaskService
         return true;
     }
 
-    public async Task UpdateTaskPositionAsync(Guid taskId, int newIndex)
+    public async Task<bool> UpdateTaskPositionAsync(Guid taskId, int newIndex)
     {
-        await _repository.UpdateTaskPositionAsync(taskId, newIndex);
+        var task = await _repository.GetTodoTaskAsync(taskId);
+        if (task == null)
+        {
+            return false;
+        }
+        await _repository.UpdateTaskPositionAsync(task, newIndex);
+        return true;
     }
 
     private async Task<ulong> GetNextPositionAsync(Guid? parentId)
