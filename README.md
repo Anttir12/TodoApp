@@ -46,7 +46,7 @@ The application uses controller, service and repository pattern (mysql in this i
 
 Tasks are saved in a mysql database where each task has a Foreign Key to another task. Null means the task is a top level task. This is how unlimited number and depth of subtasks are saved. 
 
-User defined order is accomplished by having a Position column. This is 64bit unsigned int. By default each new task is current max position + uint32.maxValue. This leaves room for when user wants to move tasks around. A "rebalancing" is triggered when user wants to move task between two other tasks where there are no room left. This updates the task positions so that each task is again 32unit.maxValue apart.
+User defined order is accomplished by having a Position column. This is 64bit unsigned int. By default each new task is current max position + uint32.maxValue. This leaves room for when user wants to move tasks around. A "rebalancing" is triggered when user wants to move task between two other tasks where there are no room left. This updates the task positions so that each task is again uint32.maxValue apart.
 
 You can find the API documentation from the /swagger endpoint. For example `localhost:[port]/swagger`
 
