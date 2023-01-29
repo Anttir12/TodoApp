@@ -22,7 +22,7 @@ Now that the .env is ready you can run `docker-compose up` at the root of the pr
 #
 Before starting the  app you will still need the database and set the environmental variables for the app via dotenv. But first you'll need the database. Easiest way to setup the database is to use docker. You can use this command for example:
 ```
-docker run --name todomysql -e MYSQL_ROOT_PASSWORD=mightysecret -e MYSQL_PASSWORD=todopassword -e MYSQL_USER=todouser -e MYSQL_DATABASE=todoapp -p 3306:3306 -d  mysql
+docker run --name todomysql -e MYSQL_ROOT_PASSWORD=supersecretphrase -e MYSQL_PASSWORD=anothersecretphrase -e MYSQL_USER=todouser -e MYSQL_DATABASE=todoapp -p 3306:3306 -d  mysql
 ```
 The example command uses same credentials as is found in to `TodoApp/.env.dev.template`. If you want to use the same credentials you can simply copy the `.env.dev.template` to `.env` (Note, that this time the .env should be inside the TodoApp directory).
 

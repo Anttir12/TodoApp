@@ -58,7 +58,6 @@ if (applyMigrations)
     {
         var services = scope.ServiceProvider;
         var context = services.GetRequiredService<TodoContext>();
-        Console.Write("ConnectionString: " + builder.Configuration.GetConnectionString("MySqlDatabase"));
         if (context.Database.GetPendingMigrations().Any())
         {
             context.Database.Migrate();
