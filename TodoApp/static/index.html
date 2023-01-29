@@ -122,14 +122,7 @@
                         element.subTasks = [];
                         if (element.subTaskCount > 0)
                         {
-                            $(`#body-${element.id}`).on('show.bs.collapse', () =>
-                            {
-                                if ($("#subtasksbody-" + element.id).children().length < 1)
-                                {
-                                    loadSubtasks(element.id);
-                                    console.log("Loaded subtasks!")
-                                }
-                            })
+                            addCollapseShowListener(element.id)
                         }
                         todoTaskLookup[element.id] = element;
                     });
@@ -205,19 +198,25 @@
 
         const loadSubtasks = (parentId, pagenumber = 1) =>
         {
+            let sortOrder = $("#sortField").val() + ($("#sortOrder").val() ?? "");
+            let parent = todoTaskLookup[parentId];
             $.get({
                 url: "/tasks/" + parentId + "/subtasks",
-                data: { pagenumber: pagenumber, pagesize: pagesize },
+                data: { pagenumber: pagenumber, pagesize: pagesize, sortOrder: sortOrder },
                 success: (response) =>
                 {
                     console.log("Data loaded!");
                     console.log(response);
-                    //todoTaskData.push(...(response.data ?? []));
+                    parent.subTasks.push(...(response.data ?? []));
                     response.data.forEach(element =>
                     {
-                        $("#subtasksbody-" + parentId).append(TodoTaskCardTemplate(element))
                         element.subTasks = [];
                         todoTaskLookup[element.id] = element;
+                        $("#subtasksbody-" + parentId).append(TodoTaskCardTemplate(element))
+                        if (element.subTaskCount > 0)
+                        {
+                            addCollapseShowListener(element.id)
+                        }
                     });
                     if (response.pageCount > pagenumber)
                     {
@@ -235,6 +234,18 @@
                     console.log(e);
                 }
             });
+        }
+
+        const addCollapseShowListener = (taskId) =>
+        {
+            $(`#body-${taskId}`).on('show.bs.collapse', () =>
+            {
+                if ($("#subtasksbody-" + taskId).children().length < 1)
+                {
+                    loadSubtasks(taskId);
+                    console.log("Loaded subtasks!")
+                }
+            })
         }
 
         const updateTask = (id) =>

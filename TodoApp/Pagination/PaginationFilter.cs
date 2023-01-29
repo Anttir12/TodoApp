@@ -1,6 +1,6 @@
 public class PaginationFilter
 {
-    public static int maxPageSize = 50;
+    public static int maxPageSize = 5000;
     public int PageNumber { get; set; }
     public int PageSize { get; set; }
     public string SortOrder { get; set; }
