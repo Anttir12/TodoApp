@@ -1,6 +1,7 @@
 using dotenv.net;
 using dotenv.net.Utilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using TodoApp;
 using TodoApp.Repositories;
 using TodoApp.Services;
@@ -36,6 +37,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseFileServer(new FileServerOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "static")),
+    RequestPath = "",
+    EnableDefaultFiles = true
+});
 
 //app.UseHttpsRedirection();
 
